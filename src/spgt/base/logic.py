@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 from typing import List, Dict
 
-from pddl import logic as lg
+from spgt.asp.symbols import *
 
 class Formula(ABC):
 	symbol: str
@@ -16,8 +16,7 @@ class Formula(ABC):
 	unary_mappings = {
 		'!': 'Neg'
 	}
-	ASP_TRUE_VALUE = 'trueValue'
-	ASP_FALSE_VALUE = 'falseValue'
+
 	
 	@abstractmethod
 	def as_ASP(self):
@@ -90,59 +89,6 @@ class Formula(ABC):
 			return globals()[mappings[s[0]]](Formula.parse(s[1:]))
 		
 		return Atom(s)
-	
-	@staticmethod
-	def parse_pddl(F: lg.base.Formula, lookup: Dict[str, str] = None):
-		'''
-		Parses a PDDL Formula object into an equivalent formula in the Translator's type.
-		'''
-		do_nothing = lambda F: F
-		
-		def binary_case(F: lg.base.BinaryOp, ftype: type):
-			ops = F._operands
-			if len(ops) < 2:
-				return Formula.parse_pddl(ops.pop())
-			
-			new_F = ftype(Formula.parse_pddl(ops.pop()), 
-				 Formula.parse_pddl(ops.pop()))
-			
-			while len(ops):
-				next_form = Formula.parse_pddl(ops.pop())
-				new_F = ftype(next_form, new_F)
-			
-			return new_F
-			
-		def imply_case(F: lg.base.Imply):
-			a = Formula.parse_pddl(F.operands[0])
-			b = Formula.parse(F.operands[1])
-			return Disj(Neg(a), b),
-		
-		def predicate_case(F: lg.Predicate):
-			if F.arity == 0:
-				return Atom(F.name)
-			
-			return Atom(F.__repr__())
-			
-		
-		switch = {
-			lg.terms.Constant: lambda F: Atom(F.name),
-			# lg.terms.Variable: ,
-			lg.predicates.Predicate: predicate_case,
-			lg.base.Atomic: do_nothing,
-			lg.base.TrueFormula: lambda F: Verum(),
-			lg.base.FalseFormula: lambda F: Falsum(),
-			lg.base.Not: lambda F: Neg(Formula.parse_pddl(F._arg)),
-			lg.base.And: lambda F: binary_case(F, Conj),
-			lg.base.Or: lambda F: binary_case(F, Disj),
-			lg.base.Imply: imply_case,
-			# Return a list of all the possible formulae as outcomes.
-			lg.base.OneOf: lambda F: [Formula.parse_pddl(sub) for sub in F._operands],
-		}
-		
-		if not isinstance(F, tuple(switch.keys())):
-			raise ValueError(f"Type '{type(F)}' not supported.")
-		
-		return switch[type(F)](F)
 	
 	@staticmethod
 	def __inverse_demorgan(F: Formula):
@@ -265,8 +211,8 @@ class Atom(Formula):
 
 class Verum(Formula):
 	symbol = '\u22A4'
-	ASP_SYMBOL = 'verum'
+	ASP_SYMBOL = ASP_TRUE_VALUE
 
 class Falsum(Formula):
 	symbol = '\u22A5'
-	ASP_SYMBOL = 'falsum'
+	ASP_SYMBOL = ASP_FALSE_VALUE

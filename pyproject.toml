@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spgt"
+version = "0.0.1"
+authors = [
+	{ name="Simon Dowd", email="simon@anldowd.com" },
+]
+
+description = "A Planner for Fully Observable Non-Deterministic Planning (FOND) Problems with Temporal Objectives."
+readme = "README.md"
+requires-python = ">=3.13"
+
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"Operating System :: OS Independent",
+]
+
+license = "MIT"
+license-files = ["LICENSE"]
+
+[project.scripts]
+spgt = "spgt.__main__:main"

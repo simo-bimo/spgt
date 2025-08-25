@@ -10,3 +10,5 @@ ASP_EFFECT_DELETE_SYMBOL = 'del'
 
 ASP_TRUE_VALUE = 'trueValue'
 ASP_FALSE_VALUE = 'falseValue'
+
+ASP_GOAL_SYMBOL = 'goal'

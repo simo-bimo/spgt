@@ -94,7 +94,6 @@ class TestFormulaBasic(unittest.TestCase):
 				self.assertEqual(asp, exp_output.replace(' ', ''))
 		pass
 	
-	@unittest.skip("Deprecated")
 	def test_e_simplify_constants(self):
 		"""
 		Tests constants falsum and verum are simplified correctly.
@@ -113,10 +112,10 @@ class TestFormulaBasic(unittest.TestCase):
 			(Disj(b, Verum()), str(Verum())),
 			(Conj(Disj(Verum(), a), b), str(b))
 		]
-		# for psi, exp_simp in subtests:
-		# 	with self.subTest(psi_str = str(psi), exp_simp=exp_simp, psi=psi):
-				# simplified = str(Formula.simplify_constants(psi))
-				# self.assertEqual(simplified, exp_simp)
+		for psi, exp_simp in subtests:
+			with self.subTest(psi_str = str(psi), exp_simp=exp_simp, psi=psi):
+				simplified = str(Formula.simplify_constants(psi))
+				self.assertEqual(simplified, exp_simp)
 		pass
 	
 	@unittest.skip("Deprecated")

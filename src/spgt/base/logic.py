@@ -16,9 +16,7 @@ class Formula(ABC):
 	unary_mappings = {
 		'!': 'Neg'
 	}
-
 	
-	@abstractmethod
 	def as_ASP(self):
 		return self.ASP_SYMBOL
 	
@@ -142,6 +140,44 @@ class Formula(ABC):
 		
 		if not isinstance(F, tuple(switch.keys())):
 			raise ValueError(f"Type '{type(F)}' not supported.")
+		
+		return switch[type(F)](F)
+	
+	@staticmethod
+	def simplify_constants(F: Formula):
+		"""
+		Returns a new formula with the constants dissolved away.
+		"""
+		do_nothing = lambda F: F
+		recurse = lambda F: [Formula.simplify_constants(s) for s in F._sub]
+		
+		def negation_case(F: Neg):
+			if isinstance(F._arg, Falsum):
+				return Verum()
+			if isinstance(F._arg, Verum):
+				return Falsum()
+			return F
+		
+		def dissolve_or_disprove(F : Conj | Disj, dissolve, disprove):
+			if disprove in [type(x) for x in F._sub]:
+				return disprove()
+			if dissolve in [type(x) for x in F._sub]:
+				new_subs = [x for x in F._sub if not type(x) is dissolve]
+				return new_subs.pop()
+			return F
+		
+		switch = {
+			Falsum: do_nothing,
+			Verum: do_nothing,
+			Atom: do_nothing,
+			Neg: negation_case,
+			Assign: do_nothing,
+			Conj: lambda F: dissolve_or_disprove(type(F)(*recurse(F)), Verum, Falsum),
+			Disj: lambda F: dissolve_or_disprove(type(F)(*recurse(F)), Falsum, Verum),
+		}
+		
+		if not isinstance(F, tuple(switch.keys())):
+			raise ValueError(f"Type '{type(Formula)}' not supported.")
 		
 		return switch[type(F)](F)
 	

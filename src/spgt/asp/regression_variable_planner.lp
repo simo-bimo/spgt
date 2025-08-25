@@ -36,6 +36,8 @@ reachableG(N):- node(N), N=numNodes.
 reachableG(N):- next(N, _, N1), reachableG(N1).
 :- not reachableG(N), node(N).
 
+% #show goal/1.
+% #show init/2.
 % #show holds/2.
 % #show next/3.
 % #show policy/2.

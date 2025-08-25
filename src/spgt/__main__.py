@@ -49,10 +49,12 @@ def main():
 	# translate
 	translator: Translator = Translator(args.domain, args.problem)
 	
-	if args.goal is None:
-		ask_for_goal(args)
+	# if args.goal is None:
+		# ask_for_goal(args)
 		
 	# solve
+	translator.save_ASP(os.path.join(args.temp_dir, "instance.lp"))
+	
 	# output
 	
 if __name__ == '__main__':

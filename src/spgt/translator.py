@@ -23,13 +23,18 @@ class Variable:
 		self.name = name
 		self.domain = domain
 	
+	def __eq__(self, other):
+		return isinstance(other, Variable) \
+			and other.name == self.name \
+			and other.domain == self.domain
+	
 	def __hash__(self):
-		return (self.name, *self.domain).__hash__()
+		return hash((self.name, *sorted(self.domain)))
 	
 	def as_ASP(self):
 		ls = []
 		for val in self.domain:
-			ls.append(ASP_VARIABLE_VALUE_SYMBOL + f"({self.name}, {val}).")
+			ls.append(ASP_VARIABLE_VALUE_SYMBOL + f"({make_safe(self.name)}, {make_safe(val)}).")
 		return ls
 	
 	def from_atom(atom: Atom):
@@ -69,38 +74,52 @@ class Translator:
 		self.converted_goal = None
 		
 		if process_immediate:
-			self.ground(predicate_map)
+			self.ground()
 		
 		# TODO: Smarter way to instantiate actions based on intial state.
 		# Things like `next_fwd` in action preconditions. If it's never changed or added, don't even include it as a variable.
 		# self.converted_initial = set(f)
 	
-	def ground(self, predicate_map):
+	def ground(self):
 		'''
 		Ground the domain.
 		Happens by default when a translator is instantiated.
 		'''
-		
 		# Normalise oneof operators
 		# Handle them natively or use all outcomes determinisation?
 		
-		# Identify Variables
-		# TODO: For now, stick with predicate_map for simple cases.
-		
-		# Ground predicates, creating variables based on predicate_mapping when
-		# required.
 		for p in self.predicates:
-			self.__add_variables_from_predicate(p)
+			if p.name in self.unchanging_predicates:
+				continue
+			for atom in self.__ground_predicate(p):
+				self.__add_atom(atom)
 			
 		for a in self.actions:
 			# also populates the grounded effects
 			self.grounded_actions += self.__instantiate_action(a)
 		
-		# TODO Initial state.
-		
 		# The goal shouldn't have any parameters in it, so we do not need
 		# a variable mapping
 		self.converted_goal = self.__convert_formula(self.instance.goal, {})
+		
+	def __init_atom_rules(self):
+		'''
+		Yields ASP rules describing the initial state.
+		'''
+		for p in self.instance.init:
+			# if p.name in self.unchanging_predicates:
+			# 	continue
+			if isinstance(p, lg.Predicate):
+				atom = self.__convert_formula(p, {})
+				yield ASP_INIT_SYMBOL + f"({atom.symbol}, {ASP_TRUE_VALUE})."
+			if isinstance(p, lg.base.Not):
+				atom = self.__convert_formula(p._arg, {})
+				yield ASP_INIT_SYMBOL + f"({atom.symbol}, {ASP_FALSE_VALUE})."
+		for p in self.variables:
+			# a scrappy fix assuming all variables are binary.
+			if not p.name in [pred.name for pred in self.instance.init]:
+				yield ASP_INIT_SYMBOL + f"({p.name}, {ASP_FALSE_VALUE})."
+				
 		
 	def __get_initial_values(self, predicate) -> Set:
 		'''
@@ -124,43 +143,48 @@ class Translator:
 		predicates_in_effects = set([pred.name for effect in self.all_effects for pred in Translator.__get_predicates_in_formula(effect)])
 		return set([p.name for p in self.predicates]) - predicates_in_effects
 	
+	def __get_child_types(self, type_name: str):
+		'''
+		Returns all type-children of the given type.
+		Assumes there are no circular dependencies in the type system.
+		'''
+		for t in self.types:
+			if type_name == self.types[t]:
+				yield t
+				for sub_child in self.__get_child_types(t):
+					yield sub_child
+		
 	def __objects_of_type(self, type_name: str):
+		'''
+		Yields all objects of a certain type.
+		'''
 		assert type_name in self.types
-		ls = []
+		types = set(self.__get_child_types(type_name))
+		types.add(type_name)
 		for obj in self.objects:
-			if type_name in obj.type_tags:
-				ls.append(obj)
-		return ls
+			# if one of our childtypes labels this object, then yield it.
+			if (set(obj.type_tags) & types):
+				yield obj
+		
 	
 	def __add_atom(self, atom: Atom):
 		self.variables.add(Variable.from_atom(atom))
 		return atom
 	
-	def __add_variables_from_predicate(self, predicate):
-		s = str(predicate)
-		if s in self.predicate_map and predicate.arity == 1:
-			name = self.predicate_map[s]
-			
-			# there should be exactly one term if it is in the predicate map
-			predicate_domain = self.__objects_of_type(predicate.terms[0].type_tag)
-			var_domain = [self.__convert_formula(o) for o in predicate_domain]
-			return self.variables.add(Variable(name, var_domain))
-		
-		# else instantiate every possible choice of inputs to the predicate
-		# as an atom
-		term_choices = []
+	def __ground_predicate(self, predicate):
+		# instantiate every choice of a predicate as an atom.
+		choices = []
 		for term in predicate.terms:
-			choices = []
-			for tag in list(term.type_tags):
-				choices += self.__objects_of_type(tag)
-			term_choices.append({c: term.name for c in choices})
+			term_choices = []
+			for t_type in list(term.type_tags):
+				term_choices += [(term.name, obj.name) for obj in self.__objects_of_type(t_type)]
+			choices.append(term_choices)
 		
 		
-		for choice in itertools.product(*term_choices):
-			mapping = {k: v for v,k in choice}
+		for choice in itertools.product(*choices):
+			mapping = dict(choice)
 			
-			atom = self.__convert_formula(predicate, mapping)
-			self.__add_atom(atom)
+			yield self.__convert_formula(predicate, mapping)
 
 	def __convert_formula(self, F: lg.base.Formula, 
 					   mappings: Dict[str, str],
@@ -202,26 +226,32 @@ class Translator:
 				return Falsum()
 			
 			if F.arity == 0:
-				return self.__add_atom(Atom(F.name))
+				return Atom(F.name)
 			
 			# If our mapping says this predicate should be converted to a variable,
 			# then turn this statement into an assignment.
 			if F.arity == 1 and F.name in self.predicate_map:
 				return Assign(
-					self.__add_atom(Atom(self.predicate_map[F.name])), 
-					self.__add_atom(Atom(self.__convert_formula(F.terms[0], mappings, *args, **kwargs)))
+					Atom(self.predicate_map[F.name]),
+					Atom(self.__convert_formula(F.terms[0], mappings, *args, **kwargs))
 					)
 			
 			# otherwise instantiate the specific instance
-			mapped_terms = [str(self.__convert_formula(t, mappings, *args, **kwargs)) for t in F.terms]
+			mapped_terms = [str(self.__convert_formula(t, mappings)) for t in F.terms]
+			new_name = F.name + "(" + ",".join(mapped_terms) + ")"
+			atom = Atom(new_name)
+			return atom
+		
+		def variable_case(V: lg.terms.Variable):
 			
-			return self.__add_atom(Atom(F.name + "(" + ",".join(mapped_terms) + ")"))
+			
+			return
 		
 		switch = {
-			lg.terms.Constant: lambda F: self.__add_atom(Atom(F.name)),
-			lg.terms.Variable: lambda F: self.__add_atom(Atom(mappings[F.name])),
+			lg.terms.Constant: lambda C: C.name,
+			lg.terms.Variable: lambda F: Atom(mappings[F.name]),
 			lg.predicates.Predicate: predicate_case,
-			lg.base.Atomic: do_nothing,
+			lg.base.Atomic: lambda F: F.symbol,
 			# lg.base.TrueFormula: lambda F: Verum(),
 			# lg.base.FalseFormula: lambda F: Falsum(),
 			lg.base.Not: lambda F: Neg(self.__convert_formula(F._arg, mappings, *args, **kwargs)),
@@ -307,9 +337,9 @@ class Translator:
 		"""
 		Instantiates an action with the given variable
 		"""
-		var_choice_string = "(" + ",".join(str(o) for var,o in mapping.items()) + ")"
+		var_choice_string = "_" + "_".join(str(o) for var,o in mapping.items())
 		new_name = action.name + var_choice_string
-		new_effect_name = action.name + "_effect" + var_choice_string
+		new_effect_name = action.name + var_choice_string
 		
 		valid = [p for p in Translator.__get_positive_predicates(action.precondition) if p.name in self.unchanging_predicates]
 		unsatisfiable = [p for p in Translator.__get_negative_predicates(action.precondition) if p.name in self.unchanging_predicates]
@@ -320,12 +350,15 @@ class Translator:
 		# which are unsatisfiable
 		assert not isinstance(new_prec, Falsum)
 		
-		effect_formula = self.__convert_formula(action.effect, mapping)
-		new_effect = GroundedEffect.from_formula(new_effect_name, effect_formula)
+		effect_formulas = self.__convert_formula(action.effect, mapping)
+		if not isinstance(effect_formulas, list):
+			effect_formulas = [effect_formulas]
+			
+		new_effects = [GroundedEffect.from_formula(new_effect_name + f"_effect_{i}", eff_form) for i,eff_form in enumerate(effect_formulas)]
 		
-		self.grounded_effects.append(new_effect)
+		self.grounded_effects += new_effects
 		
-		return GroundedAction(new_name, new_prec, [new_effect])
+		return GroundedAction(new_name, new_prec, new_effects)
 	
 	def __instantiate_action(self, action):
 		new_actions = []
@@ -348,17 +381,28 @@ class Translator:
 		'''
 		for v in self.variables:
 			for r in v.as_ASP():
-				yield r
+				yield r + "\n"
+		
+		yield "\n"
+		
+		for r in self.__init_atom_rules():
+			yield r + "\n"
+		
+		yield "\n"
+		
+		yield ASP_GOAL_SYMBOL + f"({self.converted_goal.as_ASP()}).\n"
+		
+		yield "\n"
 		
 		for a in self.grounded_actions:
 			for r in a.as_ASP():
-				yield r
+				yield r + "\n"
 		
+		yield "\n"
 		for e in self.grounded_effects:
 			for r in e.as_ASP():
-				yield r
+				yield r + "\n"
 		
-		yield ASP_GOAL_SYMBOL + f"({self.converted_goal.as_ASP()})."
 	
 	@staticmethod
 	def __get_predicates_in_formula(formula: lg.base.Formula) -> Set:
@@ -397,5 +441,7 @@ if __name__ == '__main__':
 	t = Translator(
 		"/home/simon/Documents/Uni/Honours/Code/robot_4/domain-fond_all_outcomes.pddl",
 		"/home/simon/Documents/Uni/Honours/Code/Plan4Past-data/non-deterministic/PPLTL/BF23/robot_4/new_coffee10.pddl")
+	
 	for rule in t.as_ASP():
 		print(rule)
+		pass

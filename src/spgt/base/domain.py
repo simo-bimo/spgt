@@ -15,10 +15,10 @@ class GroundedEffect:
 		"""
 		ls = []
 		for a in self.add:
-			s = ASP_EFFECT_ADD_SYMBOL + f"({self.name}, {a[0]}, {a[1]})."
+			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {a[0]}, {a[1]})."
 			ls.append(s)
 		for d in self.delete:
-			s = ASP_EFFECT_DELETE_SYMBOL + f"({self.name}, {d[0]}, {d[1]})."
+			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {d[0]}, {d[1]})."
 			ls.append(s)
 		return ls
 		
@@ -48,7 +48,9 @@ class GroundedEffect:
 		
 		# Atoms
 		adds += [(str(f), ASP_TRUE_VALUE) for f in positives if isinstance(f, Atom)]
-		deletes += [(str(f), ASP_FALSE_VALUE) for f in negatives if isinstance(f, Atom)]
+		adds += [(str(f), ASP_FALSE_VALUE) for f in negatives if isinstance(f, Atom)]
+		deletes += [(str(f), ASP_TRUE_VALUE) for f in negatives if isinstance(f, Atom)]
+		deletes += [(str(f), ASP_FALSE_VALUE) for f in positives if isinstance(f, Atom)]
 		
 		return GroundedEffect(name, adds, deletes)
 	
@@ -76,10 +78,10 @@ class GroundedAction:
 		Returns a list of ASP rules describe the effect.
 		'''
 		ls = []
-		ls.append(ASP_ACTION_SYMBOL + f'({self.name}).')
-		ls.append(ASP_ACTION_PRECONDITION_SYMBOL + f'({self.precondition.as_ASP()}).')
+		ls.append(ASP_ACTION_SYMBOL + f'({make_safe(self.name)}).')
+		ls.append(ASP_ACTION_PRECONDITION_SYMBOL + f'({make_safe(self.name)}, {self.precondition.as_ASP()}).')
 		
 		for e in self.effects:
-			ls.append(ASP_ACTION_EFFECT_SYMBOL + f'({self.name}, {e.name}).')
+			ls.append(ASP_ACTION_EFFECT_SYMBOL + f'({make_safe(self.name)}, {make_safe(e.name)}).')
 		
 		return ls

@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from spgt.base.logic import Formula, Conj, Assign, Neg
+from spgt.base.logic import Formula, Conj, Assign, Neg, Atom
 from spgt.asp.symbols import *
 
 class GroundedEffect:
@@ -29,7 +29,7 @@ class GroundedEffect:
 		Disjunctions and other Binary Ops will be ignored.
 		'''
 		# recurse down finding all literals of the given type. Nothing
-		def get_lits(form: Formula, l_type = Assign) -> List:
+		def get_lits(form: Formula, l_type = (Assign,Atom)) -> List:
 			if isinstance(form, Conj):
 				recursions = [get_lits(x, l_type) for x in form._sub]
 				return [x for xs in recursions for x in xs]
@@ -42,8 +42,13 @@ class GroundedEffect:
 		positives = get_lits(f)
 		negatives = [x._arg for x in get_lits(f, Neg)]
 		
-		adds = [(str(f._sub[0]), str(f._sub[1])) for f in positives]
-		deletes = [(str(f._sub[0]), str(f._sub[1])) for f in negatives]
+		# Assigns
+		adds = [(str(f._sub[0]), str(f._sub[1])) for f in positives if isinstance(f, Assign)]
+		deletes = [(str(f._sub[0]), str(f._sub[1])) for f in negatives if isinstance(f, Assign)]
+		
+		# Atoms
+		adds += [(str(f), ASP_TRUE_VALUE) for f in positives if isinstance(f, Atom)]
+		deletes += [(str(f), ASP_FALSE_VALUE) for f in negatives if isinstance(f, Atom)]
 		
 		return GroundedEffect(name, adds, deletes)
 	

@@ -78,3 +78,6 @@ class TestEffectBasic(unittest.TestCase):
 				rules_set = set(e.as_ASP())
 				self.assertSetEqual(rules_set, set(expected))	
 		pass
+
+if __name__ == "__main__":
+	unittest.main()

@@ -111,14 +111,14 @@ class Translator:
 			# 	continue
 			if isinstance(p, lg.Predicate):
 				atom = self.__convert_formula(p, {})
-				yield ASP_INIT_SYMBOL + f"({atom.symbol}, {ASP_TRUE_VALUE})."
+				yield ASP_INIT_SYMBOL + f"({make_safe(atom.symbol)}, {ASP_TRUE_VALUE})."
 			if isinstance(p, lg.base.Not):
 				atom = self.__convert_formula(p._arg, {})
-				yield ASP_INIT_SYMBOL + f"({atom.symbol}, {ASP_FALSE_VALUE})."
+				yield ASP_INIT_SYMBOL + f"({make_safe(atom.symbol)}, {ASP_FALSE_VALUE})."
 		for p in self.variables:
 			# a scrappy fix assuming all variables are binary.
 			if not p.name in [pred.name for pred in self.instance.init]:
-				yield ASP_INIT_SYMBOL + f"({p.name}, {ASP_FALSE_VALUE})."
+				yield ASP_INIT_SYMBOL + f"({make_safe(p.name)}, {ASP_FALSE_VALUE})."
 				
 		
 	def __get_initial_values(self, predicate) -> Set:
@@ -166,7 +166,6 @@ class Translator:
 			if (set(obj.type_tags) & types):
 				yield obj
 		
-	
 	def __add_atom(self, atom: Atom):
 		self.variables.add(Variable.from_atom(atom))
 		return atom

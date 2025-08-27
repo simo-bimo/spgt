@@ -15,10 +15,10 @@ class GroundedEffect:
 		"""
 		ls = []
 		for a in self.add:
-			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {a[0]}, {a[1]})."
+			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {make_safe(a[0])}, {a[1]})."
 			ls.append(s)
 		for d in self.delete:
-			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {d[0]}, {d[1]})."
+			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {make_safe(d[0])}, {d[1]})."
 			ls.append(s)
 		return ls
 		

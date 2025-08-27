@@ -195,7 +195,7 @@ class UnaryOp(Formula):
 	
 	def as_ASP(self):
 		if isinstance(self._arg, Atom):
-			return ASP_HAS_VALUE_SYMBOL + f"({self._arg.symbol}, {ASP_FALSE_VALUE})"
+			return ASP_HAS_VALUE_SYMBOL + f"({make_safe(self._arg.symbol)}, {ASP_FALSE_VALUE})"
 		
 		return f"{self.ASP_SYMBOL}({self._arg.as_ASP()})"
 
@@ -243,10 +243,10 @@ class Atom(Formula):
 	symbol: str
 	
 	def __init__(self, name:str = "NO SYMBOL"):
-		self.symbol = make_safe(name)
+		self.symbol = name
 	
 	def as_ASP(self):
-		return ASP_HAS_VALUE_SYMBOL + f"({self.symbol}, {ASP_TRUE_VALUE})"
+		return ASP_HAS_VALUE_SYMBOL + f"({make_safe(self.symbol)}, {ASP_TRUE_VALUE})"
 
 class Verum(Formula):
 	symbol = '\u22A4'

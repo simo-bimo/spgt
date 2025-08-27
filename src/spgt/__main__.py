@@ -4,8 +4,9 @@ import os
 from typing import List
 
 from spgt.translator import Translator
+from spgt.solver import solve_iteratively, generate_graph
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def get_args():
 	parser: argparse.ArgumentParser = argparse.ArgumentParser(
@@ -21,6 +22,9 @@ def get_args():
 	parser.add_argument('-td', '--temp_dir',
 					 type=str,
 					 default='./output')
+	
+	parser.add_argument('-gr', '--graph',
+					 action='store_true')
 	
 	args = parser.parse_args()
 	
@@ -49,13 +53,37 @@ def main():
 	# translate
 	translator: Translator = Translator(args.domain, args.problem)
 	
+	domain_name = translator.domain.name
+	instance_name = translator.instance.name
+	
 	# if args.goal is None:
 		# ask_for_goal(args)
 		
 	# solve
-	translator.save_ASP(os.path.join(args.temp_dir, "instance.lp"))
+	instance_loc = os.path.abspath(os.path.join(args.temp_dir, "instance.lp"))
+	output_loc = os.path.abspath(os.path.join(args.temp_dir, "output.lp"))
+	graph_loc = os.path.abspath(os.path.join(args.temp_dir, "graph_facts.lp"))
+	
+	translator.save_ASP(instance_loc)
 	
 	# output
+	
+	output = solve_iteratively(instance_loc, args.graph)
+	with open(output_loc, "w+") as f:
+		f.write(output)
+	
+	if args.graph:
+		useful_rules = ['node', 'edge', 'attr', 'graph']
+		graph_lines = []
+		for line in output.splitlines():
+			if sum([line.startswith(r) for r in useful_rules]):
+				graph_lines.append(line + ".\n")
+		with open(graph_loc, "w+") as f:
+			f.writelines(sorted(graph_lines, key=lambda s: useful_rules.index(s[:4])))
+	
+	if args.graph:
+		generate_graph(graph_loc, args.temp_dir, f"{domain_name}_{instance_name}")
+	
 	
 if __name__ == '__main__':
 	main()

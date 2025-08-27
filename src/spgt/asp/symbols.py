@@ -17,9 +17,9 @@ ASP_HAS_VALUE_SYMBOL = 'has_value'
 ASP_INIT_SYMBOL = 'init'
 
 def make_safe(s: str):
-	s = s.replace('-', '_')
-	# s = s.replace(',', '_')
-	# s = s.replace('(', '_')
-	# s = s.replace(')', '_')
-	return s
+	# s = s.replace('-', '_')
+	# # s = s.replace(',', '_')
+	# # s = s.replace('(', '_')
+	# # s = s.replace(')', '_')
+	return '\"' + s + '\"'
 	

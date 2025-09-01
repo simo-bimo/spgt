@@ -1,10 +1,10 @@
 from typing import List, Tuple
 
-from spgt.base.logic import Formula, Conj, Assign, Neg, Atom
+from spgt.base.logic import Formula, Conj, Assign, Neg, Atom, Variable, Value
 from spgt.asp.symbols import *
 
 class GroundedEffect:
-	def __init__(self, name, add: List[Tuple[str, str]], delete: List[Tuple[str, str]]):
+	def __init__(self, name, add: List[Tuple[Variable, Value]], delete: List[Tuple[Variable, Value]]):
 		self.name = name
 		self.add = add
 		self.delete = delete
@@ -14,11 +14,11 @@ class GroundedEffect:
 		Returns a list of ASP rules for the add and delete rules of the effect.
 		"""
 		ls = []
-		for a in self.add:
-			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {make_safe(a[0])}, {a[1]})."
+		for var,val in self.add:
+			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {val.as_ASP()})."
 			ls.append(s)
-		for d in self.delete:
-			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {make_safe(d[0])}, {d[1]})."
+		for var,val in self.delete:
+			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {val.as_ASP()})."
 			ls.append(s)
 		return ls
 		
@@ -43,14 +43,8 @@ class GroundedEffect:
 		negatives = [x._arg for x in get_lits(f, Neg)]
 		
 		# Assigns
-		adds = [(str(f._sub[0]), str(f._sub[1])) for f in positives if isinstance(f, Assign)]
-		deletes = [(str(f._sub[0]), str(f._sub[1])) for f in negatives if isinstance(f, Assign)]
-		
-		# Atoms
-		adds += [(str(f), ASP_TRUE_VALUE) for f in positives if isinstance(f, Atom)]
-		adds += [(str(f), ASP_FALSE_VALUE) for f in negatives if isinstance(f, Atom)]
-		deletes += [(str(f), ASP_TRUE_VALUE) for f in negatives if isinstance(f, Atom)]
-		deletes += [(str(f), ASP_FALSE_VALUE) for f in positives if isinstance(f, Atom)]
+		adds = [(f._sub[0], f._sub[1]) for f in positives if isinstance(f, Assign)]
+		deletes = [(f._sub[0], f._sub[1]) for f in negatives if isinstance(f, Assign)]
 		
 		return GroundedEffect(name, adds, deletes)
 	

@@ -163,6 +163,8 @@ class Formula(ABC):
 				return disprove()
 			if dissolve in [type(x) for x in F._sub]:
 				new_subs = [x for x in F._sub if not type(x) is dissolve]
+				if not new_subs:
+					return dissolve()
 				return new_subs.pop()
 			return F
 		
@@ -172,12 +174,14 @@ class Formula(ABC):
 			Atom: do_nothing,
 			Neg: negation_case,
 			Assign: do_nothing,
+			Value: do_nothing,
+			Variable: do_nothing,
 			Conj: lambda F: dissolve_or_disprove(type(F)(*recurse(F)), Verum, Falsum),
 			Disj: lambda F: dissolve_or_disprove(type(F)(*recurse(F)), Falsum, Verum),
 		}
 		
 		if not isinstance(F, tuple(switch.keys())):
-			raise ValueError(f"Type '{type(Formula)}' not supported.")
+			raise ValueError(f"Type '{type(F)}' not supported.")
 		
 		return switch[type(F)](F)
 	
@@ -228,16 +232,18 @@ class Disj(BinaryOp):
 
 class Assign(BinaryOp):
 	symbol = "="
-	ASP_SYMBOL = "assign"
+	ASP_SYMBOL = "has_value"
+	
+	def as_ASP(self):
+		child_symbols = [make_safe(x.symbol) for x in self._sub]
+		children_str = ','.join(child_symbols)
+		return f"{self.ASP_SYMBOL}({children_str})"
 
 class Neg(UnaryOp):
 	symbol = "\u00AC"
 	ASP_SYMBOL = "neg"
 
 class Atom(Formula):
-	'''
-	Takes the place of variables for assigns.
-	'''
 	# in this case, symbol 
 	# is the name of the atom.
 	symbol: str
@@ -246,7 +252,38 @@ class Atom(Formula):
 		self.symbol = name
 	
 	def as_ASP(self):
-		return ASP_HAS_VALUE_SYMBOL + f"({make_safe(self.symbol)}, {ASP_TRUE_VALUE})"
+		return make_safe(self.symbol)
+
+class Variable(Formula):
+	def __init__(self, name: str, domain: List[str]):
+		self.symbol = name
+		self.domain = domain
+	
+	def __eq__(self, other):
+		return isinstance(other, Variable) \
+			and other.symbol == self.symbol \
+			and other.domain == self.domain
+	
+	def __hash__(self):
+		return hash((self.symbol, *sorted(self.domain)))
+	
+	def as_ASP(self):
+		ls = []
+		for val in self.domain:
+			ls.append(ASP_VARIABLE_VALUE_SYMBOL + f"({make_safe(self.symbol)}, {make_safe(val)}).")
+		return ls
+	
+	def from_atom(atom: Atom):
+		symbol = atom.symbol
+		domain = [ASP_TRUE_VALUE, ASP_FALSE_VALUE]
+		return Variable(symbol, domain)
+	
+	def is_binary(self) -> bool:
+		return set(self.domain) == set(ASP_TRUE_VALUE, ASP_FALSE_VALUE)
+
+
+class Value(Atom):
+	pass
 
 class Verum(Formula):
 	symbol = '\u22A4'

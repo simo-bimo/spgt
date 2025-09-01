@@ -232,8 +232,6 @@ class Translator:
 			# also populates the grounded effects
 			self.grounded_actions.update(self.__instantiate_action(a))
 		
-		print(f"Instantied with {len(self.grounded_actions)} actions and {len(self.grounded_effects)} effects.")
-		
 		# The goal shouldn't have any parameters in it, so we do not need
 		# a variable mapping
 		self.converted_goal = self.__convert_formula(self.instance.goal, {})
@@ -450,8 +448,6 @@ class Translator:
 			if params > set(mapping.keys()):
 				continue
 			new_actions.append(self.__create_action(action, mapping))
-		
-		print(f"Created {len(new_actions)} new actions for {action.name}.")
 		
 		return new_actions
 	

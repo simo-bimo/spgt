@@ -55,8 +55,8 @@ class Translator:
 		
 		self.unary_predicate_variable_lookup = {}
 		
-		self.grounded_actions = []
-		self.grounded_effects = []
+		self.grounded_actions = set()
+		self.grounded_effects = set()
 		self.converted_goal = None
 		
 		if process_immediate:
@@ -230,7 +230,9 @@ class Translator:
 		# Actions.
 		for a in self.actions:
 			# also populates the grounded effects
-			self.grounded_actions += self.__instantiate_action(a)
+			self.grounded_actions.update(self.__instantiate_action(a))
+		
+		print(f"Instantied with {len(self.grounded_actions)} actions and {len(self.grounded_effects)} effects.")
 		
 		# The goal shouldn't have any parameters in it, so we do not need
 		# a variable mapping
@@ -373,9 +375,10 @@ class Translator:
 		
 		# other parameters which may take any value (of the specified type)
 		# we allow for those which occur in prohibitions because we will simply skip all prohibited values.
-		free_parameters = [param 
-					 for predicate in requirements 
-					 for param in action.parameters if not param in predicate.terms ]
+		free_parameters = []
+		for param in action.parameters:
+			if param.name not in [t.name for pred in requirements for t in pred.terms]:
+				free_parameters.append(param)
 	
 		free_choices = []
 		for param in free_parameters:
@@ -417,7 +420,6 @@ class Translator:
 		Instantiates an action with the given variable
 		"""
 		# ensure a consistent ordering of parameters across actions.
-		
 		mapping = dict((k,mapping[k]) for k in sorted(mapping))
 		var_choice_string = "_" + "_".join(str(o) for var,o in mapping.items())
 		new_name = action.name + var_choice_string
@@ -436,7 +438,7 @@ class Translator:
 			
 		new_effects = [GroundedEffect.from_formula(new_effect_name + f"_effect_{i}", eff_form) for i,eff_form in enumerate(effect_formulas)]
 		
-		self.grounded_effects += new_effects
+		self.grounded_effects.update(new_effects)
 		
 		return GroundedAction(new_name, new_prec, new_effects)
 	
@@ -445,9 +447,11 @@ class Translator:
 		params = set(p.name for p in action.parameters)
 		
 		for mapping in self.__parameter_possibilities(action):
-			if not params <= set(mapping.keys()):
+			if params > set(mapping.keys()):
 				continue
 			new_actions.append(self.__create_action(action, mapping))
+		
+		print(f"Created {len(new_actions)} new actions for {action.name}.")
 		
 		return new_actions
 	

@@ -70,6 +70,9 @@ class GroundedEffect:
 	def __str__(self):
 		return self.__repr__()
 	
+	def __hash__(self):
+		return self.__repr__().__hash__()
+	
 class GroundedAction:
 	def __init__(self, name, precondition: Formula, effects: list[GroundedEffect]):
 		self.name = name
@@ -88,3 +91,10 @@ class GroundedAction:
 			ls.append(ASP_ACTION_EFFECT_SYMBOL + f'({make_safe(self.name)}, {make_safe(e.name)}).')
 		
 		return ls
+
+	def __repr__(self):
+		effect_reps = [e.__repr__() for e in self.effects]
+		return f"Action({self.name}, {self.precondition}, Effects=(" + ",".join(effect_reps) + "))."
+
+	def __hash__(self):
+		return self.__repr__().__hash__()

@@ -17,9 +17,18 @@ class GroundedEffect:
 		for var,val in self.add:
 			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {val.as_ASP()})."
 			ls.append(s)
+			# ensure that for binary variables the other value is added (we flip it from true to false or vice versa.)
+			if var.is_binary():
+				opposite = Value(ASP_FALSE_VALUE) if val.symbol == ASP_TRUE_VALUE else Value(ASP_TRUE_VALUE)
+				alternate_s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {opposite.as_ASP()})."
+				ls.append(alternate_s)
 		for var,val in self.delete:
 			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {val.as_ASP()})."
 			ls.append(s)
+			if var.is_binary():
+				opposite = Value(ASP_FALSE_VALUE) if val.symbol == ASP_TRUE_VALUE else Value(ASP_TRUE_VALUE)
+				alternate_s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {opposite.as_ASP()})."
+				ls.append(alternate_s)
 		return ls
 		
 	@staticmethod

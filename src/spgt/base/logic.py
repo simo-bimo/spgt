@@ -279,7 +279,7 @@ class Variable(Formula):
 		return Variable(symbol, domain)
 	
 	def is_binary(self) -> bool:
-		return set(self.domain) == set(ASP_TRUE_VALUE, ASP_FALSE_VALUE)
+		return set(self.domain) == {ASP_TRUE_VALUE, ASP_FALSE_VALUE}
 
 
 class Value(Atom):

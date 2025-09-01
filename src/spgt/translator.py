@@ -416,6 +416,9 @@ class Translator:
 		"""
 		Instantiates an action with the given variable
 		"""
+		# ensure a consistent ordering of parameters across actions.
+		
+		mapping = dict((k,mapping[k]) for k in sorted(mapping))
 		var_choice_string = "_" + "_".join(str(o) for var,o in mapping.items())
 		new_name = action.name + var_choice_string
 		new_effect_name = action.name + var_choice_string

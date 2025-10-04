@@ -6,7 +6,7 @@ from clingraph.graphviz import compute_graphs, render
 
 from typing import List, AnyStr
 
-from spgt.names import ASP_PLANNER_PATH, ASP_REGRESSOR_PATH, ASP_CLINGRAPH_PATH
+from spgt.names import ASP_PPLTL_PLANNER_PATH, ASP_PLANNER_PATH, ASP_REGRESSOR_PATH, ASP_CLINGRAPH_PATH
 
 clingo_executable = "clingo"
 
@@ -40,7 +40,7 @@ def generate_graph(solution_file: AnyStr, temp_dir: AnyStr, graph_name: AnyStr):
 	pass
 
 def solve_iteratively(instance_file, starting_number: int = 0, generate_graph: bool=False):
-	files = [instance_file, ASP_REGRESSOR_PATH, ASP_PLANNER_PATH]
+	files = [instance_file, ASP_REGRESSOR_PATH, ASP_PPLTL_PLANNER_PATH]
 	if generate_graph:
 		files.append(ASP_CLINGRAPH_PATH)
 		

@@ -27,14 +27,16 @@ holds(N, UF) :-
 % Label N with the one-step unfolding of the dual of since.
 holds(N, UF) :- 
 	holds(N, F),
-	UF = conj(B, disj(A, yest(since_dual(A, B)))),
-	F = since_dual(A,B).
+	UF = conj(B, disj(A, yest(dual_since(A, B)))),
+	F = dual_since(A,B).
 
 % We need to generate the regression for every incoming effect.
 % N2 demands regression be used to satisfy F,
 % so we ensure N1 satisfies the regression.
 query_reg(F, E) :- use_reg(N, F), next(_, E, N).
 holds(N1, R) :- next(N1, E, N2), use_reg(N2, F), reg(R, F, E).
+
+:- {next(_, _, N)}0, holds(N, F), F=yest(G).
 
 % Contradictory or unsatisfiable formulae cannot hold.
 :- holds(N, G), holds(N, H), G=has_value(Var, V1), H=has_value(Var, V2), V1 != V2.
@@ -45,6 +47,7 @@ holds(N1, R) :- next(N1, E, N2), use_reg(N2, F), reg(R, F, E).
 % To ensure that the initial state does actually satisfy it.
 :- holds(0, F), F=has_value(Var, Val), not init(Var, Val).
 :- holds(0, F), F=neg(has_value(Var, Val)), init(Var, Val).
+:- holds(0, F), F=yest(G).
 :- use_reg(0, F), F=disj(G, H).
 
 reachableG(N):- node(N), N=numNodes.

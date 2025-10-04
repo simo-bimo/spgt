@@ -451,6 +451,14 @@ class Translator:
 		
 		return new_actions
 	
+	def overwrite_goal(self, new_goal: Formula):
+		'''
+		Overwrites the goal read from ASP with the given formula.
+		Does not perform any conversions or verification. If the new formula
+		refers to nonexistent variables, the output program is simply invalid.
+		'''
+		self.converted_goal = new_goal
+	
 	def save_ASP(self, path):
 		with open(path, "w+") as f:
 			f.writelines(self.as_ASP())

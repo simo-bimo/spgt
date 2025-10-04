@@ -12,9 +12,12 @@ class Formula(ABC):
 		'=': 'Assign',
 		'|': 'Disj',
 		'&': 'Conj',
+		'S': 'Since',
+		'Z': 'DualSince'
 	}
 	unary_mappings = {
-		'!': 'Neg'
+		'!': 'Neg',
+		'Y': 'Yesterday'
 	}
 	
 	def as_ASP(self):
@@ -108,6 +111,9 @@ class Formula(ABC):
 			Assign: lambda F: Neg(F),
 			Conj: lambda F: Disj(*negations(F)),
 			Disj: lambda F: Conj(*negations(F)),
+			Yesterday: lambda F: Yesterday(Neg(F._arg)),
+			Since: lambda F: DualSince(*negations(F)),
+			DualSince: lambda F: Since(*negations(F))
 		}
 		
 		if not isinstance(F, tuple(switch.keys())):
@@ -136,6 +142,9 @@ class Formula(ABC):
 			Neg: negation_case,
 			Conj: lambda F: Conj(*recurse(F)),
 			Disj: lambda F: Disj(*recurse(F)),
+			Yesterday: lambda F: Yesterday(Formula.NNF(F._arg)),
+			Since: lambda F: Since(*recurse(F)),
+			DualSince: lambda F: DualSince(*recurse(F)),
 		}
 		
 		if not isinstance(F, tuple(switch.keys())):
@@ -178,6 +187,9 @@ class Formula(ABC):
 			Variable: do_nothing,
 			Conj: lambda F: dissolve_or_disprove(type(F)(*recurse(F)), Verum, Falsum),
 			Disj: lambda F: dissolve_or_disprove(type(F)(*recurse(F)), Falsum, Verum),
+			Yesterday: lambda F: type(F)(Formula.simplify_constants(F._arg)),
+			Since: lambda F: type(F)(*recurse(F)),
+			DualSince: lambda F: type(F)(*recurse(F)),
 		}
 		
 		if not isinstance(F, tuple(switch.keys())):
@@ -222,6 +234,14 @@ class BinaryOp(Formula):
 		children_str = ','.join(child_symbols)
 		return f"{self.ASP_SYMBOL}({children_str})"
 
+class Since(BinaryOp):
+	symbol = "S"
+	ASP_SYMBOL = "since"
+
+class DualSince(BinaryOp):
+	symbol = "DS"
+	ASP_SYMBOL = 'dual_since'
+
 class Conj(BinaryOp):
 	symbol = "\u2227"
 	ASP_SYMBOL = "conj"
@@ -238,6 +258,10 @@ class Assign(BinaryOp):
 		child_symbols = [make_safe(x.symbol) for x in self._sub]
 		children_str = ','.join(child_symbols)
 		return f"{self.ASP_SYMBOL}({children_str})"
+
+class Yesterday(UnaryOp):
+	symbol = "Y"
+	ASP_SYMBOL = "yest"
 
 class Neg(UnaryOp):
 	symbol = "\u00AC"

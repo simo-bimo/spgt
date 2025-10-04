@@ -5,6 +5,7 @@ from typing import List
 
 from spgt.translator import Translator
 from spgt.solver import solve_iteratively, generate_graph
+from spgt.base.logic import Formula
 
 
 
@@ -17,7 +18,11 @@ def get_args():
 	parser.add_argument("domain")
 	parser.add_argument("problem")
 	
-	parser.add_argument("-g", "--goal", type=str)
+	parser.add_argument("-g", "--goal", 
+					 type=str, 
+					 help="""Used to overwrite the goal of a domain
+					 Use -g ? or --goal=? to print out the available variables and symbols.
+					 """)
 	
 	parser.add_argument('-td', '--temp_dir',
 					 type=str,
@@ -41,11 +46,42 @@ def get_args():
 	
 	return args
 
+def set_goal(arg_goal: str, t: Translator) -> Formula:
+	'''
+	Overwrites the goal of t based on arg_goal.
+	If arg_goal is the empty string, prints variables and symbols,
+	then asks for command line input of new goal.
+	'''
+	if arg_goal != "?":
+		t.overwrite_goal(Formula.parse(arg_goal))
+		return
+	
+	# Explain the options and ask them for the goal.
+	print("The available variables are:")
+	for v in sorted(t.variables, key=lambda v: v.symbol):
+		print(f"\t{v.symbol}:")
+		print("\t\t" + ", ".join(sorted(v.domain)))
+		
+	print("The available binary logic symbols are:")
+	for bop, symb in Formula.binary_mappings.items():
+		print(f"\t{symb}: {bop}")
+		
+	print("The available unary logic symbols are:")
+	for uop, symb in Formula.unary_mappings.items():
+		print(f"\t{symb}: {uop}")
+	
+	form_str = input("Please provide the desired goal formula: ")
+	t.overwrite_goal(Formula.parse(form_str))
+	pass
+	
+
 def main():
 	args = get_args()
 	
 	# translate
 	translator: Translator = Translator(args.domain, args.problem)
+	if not args.goal is None:
+		set_goal(args.goal, translator)
 	
 	domain_name = translator.domain.name
 	instance_name = translator.instance.name
@@ -74,7 +110,6 @@ def main():
 	
 	if args.graph:
 		generate_graph(graph_loc, args.temp_dir, f"{domain_name}_{instance_name}")
-	
 	
 if __name__ == '__main__':
 	main()

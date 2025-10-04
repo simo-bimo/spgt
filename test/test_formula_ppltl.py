@@ -1,4 +1,4 @@
-from spgt.base.logic import Formula, Falsum, Verum, Atom, Assign, Neg, Disj, Conj
+from spgt.base.logic import Formula, Falsum, Verum, Atom, Assign, Neg, Disj, Conj, Yesterday, Since, DualSince
 import unittest
 
 class TestFormulaBasic(unittest.TestCase):
@@ -18,12 +18,9 @@ class TestFormulaBasic(unittest.TestCase):
 		h = Atom('h')
 		
 		subtests = [
-			(Conj(a, b), "(a∧b)"),
-			(Conj(a, Conj(b, c)), "(a∧(b∧c))"),
-			(Conj(Conj(c, Disj(e, d)), b), "((c∧(e∨d))∧b)"),
-			(Disj(Conj(h, f), Conj(d, c)), "((h∧f)∨(d∧c))"),
-			(Neg(Disj(Conj(h, f), Conj(d, c))), "¬((h∧f)∨(d∧c))"),
-			(Conj(Conj(c, Disj(e, d)), Neg(b)), "((c∧(e∨d))∧¬b)"),
+			(Yesterday(a), "Ya"),
+			(Yesterday(Since(c, Disj(e, d))), "Y(cS(e∨d))"),
+			(Yesterday(DualSince(c, Disj(e, d))), "Y(cDS(e∨d))"),
 		]
 		
 		for formula, exp_output in subtests:

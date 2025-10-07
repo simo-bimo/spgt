@@ -1,4 +1,4 @@
-#const numNodes = 2.
+#const numNodes = 1.
 
 node(0..numNodes).
 {policy(N, A): action(A)} = 1:- node(N), N != numNodes.
@@ -9,34 +9,27 @@ holds(N, F):- policy(N, A), prec(A, F).
 
 use_reg(N, F):- holds(N, F), F=has_value(Var, Val).
 use_reg(N, F):- holds(N, F), F=neg(G).
+use_reg(N, F):- holds(N, F), F=yest(G).
+use_reg(N, F):- holds(N, F), F=since(G, H).
+use_reg(N, F):- holds(N, F), F=dual_since(G, H).
+
 
 holds(N, G):- holds(N, F), F=conj(G, H).
 holds(N, G):- holds(N, F), F=conj(H, G).
 
 1{holds(N, G); holds(N, H); use_reg(N, F)}:- holds(N,F), F=disj(G, H).
-
-% The regression of yest(F) is just F.
-holds(N1, F) :- next(N1, _, N2), holds(N2, yest(F)).
 	
-% Label N with the one-step unfolding of since.
-holds(N, UF) :-
-	holds(N, F),
-	UF = disj(B, conj(A, yest(since(A, B)))),
-	F = since(A, B).
-
-% Label N with the one-step unfolding of the dual of since.
-holds(N, UF) :- 
-	holds(N, F),
-	UF = conj(B, disj(A, yest(dual_since(A, B)))),
-	F = dual_since(A,B).
-
 % We need to generate the regression for every incoming effect.
 % N2 demands regression be used to satisfy F,
 % so we ensure N1 satisfies the regression.
 query_reg(F, E) :- use_reg(N, F), next(_, E, N).
 holds(N1, R) :- next(N1, E, N2), use_reg(N2, F), reg(R, F, E).
 
-:- {next(_, _, N)}0, holds(N, F), F=yest(G).
+% Prevent any claims of things being true yesterday if there are no previous states.
+:- {next(_, _, N)}0, holds(N, F), F=yest(G), G!=falsum.
+
+% We do not wish to regess too deep.
+:- holds(N, F), reg_depth(F, C), C > numNodes.
 
 % Contradictory or unsatisfiable formulae cannot hold.
 :- holds(N, G), holds(N, H), G=has_value(Var, V1), H=has_value(Var, V2), V1 != V2.

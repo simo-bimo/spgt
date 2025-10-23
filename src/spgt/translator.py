@@ -68,6 +68,12 @@ class Translator:
 		# Things like `next_fwd` in action preconditions. If it's never changed or added, don't even include it as a variable.
 		# self.converted_initial = set(f)
 	
+	def is_ppltl(self):
+		for f in [self.converted_goal] + [a.precondition for a in self.grounded_actions]:
+			if f.is_ppltl():
+				return True
+		return False
+	
 	def __identify_unary_variables(self):
 		'''
 		Identifies which predicates may be mapped one-to-one to variables.

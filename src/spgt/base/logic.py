@@ -29,6 +29,9 @@ class Formula(ABC):
 	def __str__(self):
 		return self.symbol
 	
+	def is_ppltl(self):
+		return False
+	
 	@staticmethod
 	def __check_binary(s: str, binary_symbols = None) -> int | None:
 		if binary_symbols is None:
@@ -214,6 +217,9 @@ class UnaryOp(Formula):
 			return ASP_HAS_VALUE_SYMBOL + f"({make_safe(self._arg.symbol)}, {ASP_FALSE_VALUE})"
 		
 		return f"{self.ASP_SYMBOL}({self._arg.as_ASP()})"
+	
+	def is_ppltl(self):
+		return self._arg.is_ppltl()
 
 class BinaryOp(Formula):
 	_sub: List[Formula]
@@ -233,14 +239,23 @@ class BinaryOp(Formula):
 		child_symbols = [x.as_ASP() for x in self._sub]
 		children_str = ','.join(child_symbols)
 		return f"{self.ASP_SYMBOL}({children_str})"
+	
+	def is_ppltl(self):
+		return sum(x.is_ppltl() for x in self._sub) >= 1
 
 class Since(BinaryOp):
 	symbol = "S"
 	ASP_SYMBOL = "since"
+	
+	def is_ppltl(self):
+		return True
 
 class DualSince(BinaryOp):
 	symbol = "DS"
 	ASP_SYMBOL = 'dual_since'
+	
+	def is_ppltl(self):
+		return True
 
 class Conj(BinaryOp):
 	symbol = "\u2227"
@@ -262,6 +277,9 @@ class Assign(BinaryOp):
 class Yesterday(UnaryOp):
 	symbol = "Y"
 	ASP_SYMBOL = "yest"
+	
+	def is_ppltl(self):
+		return True
 
 class Neg(UnaryOp):
 	symbol = "\u00AC"

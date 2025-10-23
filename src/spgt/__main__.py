@@ -115,8 +115,8 @@ def main():
 	# The translator may already contain, or have been updated
 	# to contain ppltl formulae, in which case we need to use the
 	# correct regressor and planner.
-	# if translator.is_ppltl():
-		# args.ppltl = True
+	if translator.is_ppltl():
+		args.ppltl = True
 	
 	instance_loc = os.path.abspath(os.path.join(args.temp_dir, "instance.lp"))
 	output_loc = os.path.abspath(os.path.join(args.temp_dir, "output.lp"))

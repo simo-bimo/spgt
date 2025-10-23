@@ -27,7 +27,6 @@ def filter_atoms(atoms: List[AnyStr], filter: List[AnyStr] = [], as_facts: bool 
 			output_atoms.append(local_a)
 	return output_atoms
 
-
 def _run_clingo_as_subprocess(clingo_path: AnyStr,
 							  files: List[AnyStr],
 							  k: int = 1, 

@@ -4,6 +4,8 @@ import itertools
 import pddl
 from pddl import logic as lg
 
+from fondutils.normalizer import normalize
+
 from spgt.asp.symbols import *
 from spgt.base.domain import GroundedAction, GroundedEffect
 from spgt.base.logic import Formula, Verum, Falsum, Atom, Neg, Conj, Disj, Assign, Variable, Value
@@ -23,10 +25,8 @@ class Translator:
 		self.domain_path = domain_path
 		self.instance_path = instance_path
 		
-		self.domain = pddl.parse_domain(domain_path)
+		self.domain = normalize(pddl.parse_domain(domain_path))
 		self.actions = set(self.domain.actions)
-		
-		
 		
 		self.all_effects = [a.effect for a in self.actions if not isinstance(a.effect, lg.base.OneOf)]
 		# We treat different non-deterministic outcomes as different effects.

@@ -7,6 +7,8 @@ from clingo import Model
 
 from typing import List, AnyStr
 
+from time import time
+
 from spgt.names import ASP_PPLTL_PLANNER_PATH, \
 		ASP_PLANNER_PATH, ASP_REGRESSOR_PATH, \
 		ASP_PPLTL_REGRESSOR_PATH, ASP_CLINGRAPH_PATH, \
@@ -59,21 +61,25 @@ def _run_clingo_as_subprocess(clingo_path: AnyStr,
 	print(proc.stdout)
 	return None
 
-def solve_iteratively_subprocess(args, files):
+def solve_iteratively_subprocess(args, files, start_time):
 	clingo_path = args.clingo_path
-	clingo_args = args.clingo_args
 	
 	output = False
 	num_nodes = args.start_size-1
 	while output == False:
 		num_nodes += 1
 		print(f"Attempting to solve with {num_nodes} nodes.")
+		remaining_time = args.time_limit - time() + start_time
 		extra_args = ['--out-ifs=\\n']
-		extra_args += clingo_args
+		extra_args += args.clingo_args
+		
+		if args.time_limit >= 0:
+			extra_args += [f'--time-limit={int(remaining_time)}']
+		
 		output = _run_clingo_as_subprocess(clingo_path, files, num_nodes, extra_args=extra_args)
 	
 	if output is None:
-		print('An error occurred during solving.')
+		print('Failed to solve.')
 		return []
 	
 	print(f"Solved with {num_nodes} nodes.")
@@ -140,17 +146,20 @@ def select_files(args) -> List[str]:
 		files += [ASP_STRONG_PATH]
 	return files
 	
-def solve(args, instance_file: AnyStr):
+def solve(args, instance_file: AnyStr, start_time: float):
 	
 	files = select_files(args)
 	files += [instance_file]
 	
+	if args.time_limit >= 0:
+		args.subprocess = True
+	
 	if args.subprocess:
-		output = solve_iteratively_subprocess(args, files)
+		output = solve_iteratively_subprocess(args, files, start_time)
 	else:
 		output = solve_iteratively(args, files)
 	
-	if args.graph:
+	if args.graph and len(output):
 		generate_graph(output, args.temp_dir)
 	
 	return output

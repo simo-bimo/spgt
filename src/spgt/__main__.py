@@ -9,6 +9,7 @@ from spgt.base.logic import Formula
 
 from spgt import names
 
+from time import time
 
 def get_args():
 	parser: argparse.ArgumentParser = argparse.ArgumentParser(
@@ -51,6 +52,9 @@ def get_args():
 	
 	parser.add_argument('--ppltl', action='store_true')
 	parser.add_argument('--strong', action='store_true')
+	parser.add_argument('--time_limit',
+					 type=float,
+					 default=-1)
 	
 	parser.set_defaults(
 		graph=False,
@@ -108,6 +112,8 @@ def main():
 	args = get_args()
 	args.clingo_args = parse_clingo_args(args.clingo_args)
 	
+	start_time = time()
+	
 	translator: Translator = Translator(args.domain, args.problem)
 	if not args.goal is None:
 		set_goal(args.goal, translator)
@@ -123,9 +129,11 @@ def main():
 	
 	translator.save_ASP(instance_loc)
 	
-	output = solve(args, instance_loc)
+	output = solve(args, instance_loc, start_time)
 	with open(output_loc, "w+") as f:
 		f.writelines(s+'\n' for s in output)
+	
+	print(f"Finished in {(time()-start_time):.2f} seconds.")
 	
 if __name__ == '__main__':
 	main()

@@ -279,7 +279,7 @@ class Translator:
 		'''
 		Yields all objects of a certain type.
 		'''
-		assert type_name in self.types
+		# assert type_name in self.types
 		types = set(self.__get_child_types(type_name))
 		types.add(type_name)
 		for obj in self.objects:

@@ -1,2 +1,3 @@
 pddl>=0.4.3
 clingraph>=1.1.2
+clingo>=5.7.1

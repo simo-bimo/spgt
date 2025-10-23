@@ -4,9 +4,10 @@ import os
 from typing import List
 
 from spgt.translator import Translator
-from spgt.solver import solve_iteratively, generate_graph
+from spgt.solver import solve
 from spgt.base.logic import Formula
 
+from spgt import names
 
 
 def get_args():
@@ -18,11 +19,24 @@ def get_args():
 	parser.add_argument("domain")
 	parser.add_argument("problem")
 	
+	parser.add_argument('--subprocess',
+					action='store_true',
+					help="Whether to run clingo as a CLI subprocess or through the Python API.")
+	
+	parser.add_argument('--clingo_path',
+					 type=str,
+					 default='clingo',
+					 help="The location of the clingo executable.")
+	
+	parser.add_argument('--clingo_args',
+					 type=str,
+					 help="Extra arguments to give to clingo when run through the CLI.")
+	
 	parser.add_argument("-g", "--goal", 
-					 type=str, 
-					 help="""Used to overwrite the goal of a domain
-					 Use -g ? or --goal=? to print out the available variables and symbols.
-					 """)
+					type=str, 
+					help="""Used to overwrite the goal of a domain.
+					Use -g ? or --goal=? to print out the available variables and symbols.
+					""")
 	
 	parser.add_argument('-td', '--temp_dir',
 					 type=str,
@@ -34,6 +48,16 @@ def get_args():
 	parser.add_argument('--start_size',
 					 type=int,
 					 default=1)
+	
+	parser.add_argument('--ppltl', action='store_true')
+	parser.add_argument('--strong', action='store_true')
+	
+	parser.set_defaults(
+		graph=False,
+		ppltl=False,
+		strong=False,
+		clingo_args=""
+	)
 	
 	args = parser.parse_args()
 	
@@ -74,42 +98,34 @@ def set_goal(arg_goal: str, t: Translator) -> Formula:
 	t.overwrite_goal(Formula.parse(form_str))
 	pass
 	
+def parse_clingo_args(args: str) -> List[str]:
+	if len(args) == 0:
+		return []
+	
+	return args.split(' ')
 
 def main():
 	args = get_args()
+	args.clingo_args = parse_clingo_args(args.clingo_args)
 	
-	# translate
 	translator: Translator = Translator(args.domain, args.problem)
 	if not args.goal is None:
 		set_goal(args.goal, translator)
 	
-	domain_name = translator.domain.name
-	instance_name = translator.instance.name
+	# The translator may already contain, or have been updated
+	# to contain ppltl formulae, in which case we need to use the
+	# correct regressor and planner.
+	# if translator.is_ppltl():
+		# args.ppltl = True
 	
-	# solve
 	instance_loc = os.path.abspath(os.path.join(args.temp_dir, "instance.lp"))
 	output_loc = os.path.abspath(os.path.join(args.temp_dir, "output.lp"))
-	graph_loc = os.path.abspath(os.path.join(args.temp_dir, "graph_facts.lp"))
 	
 	translator.save_ASP(instance_loc)
 	
-	# output
-	
-	output = solve_iteratively(instance_loc, args.start_size, args.graph)
+	output = solve(args, instance_loc)
 	with open(output_loc, "w+") as f:
-		f.write(output)
-	
-	if args.graph:
-		useful_rules = ['node', 'edge', 'attr', 'graph']
-		graph_lines = []
-		for line in output.splitlines():
-			if sum([line.startswith(r) for r in useful_rules]):
-				graph_lines.append(line + ".\n")
-		with open(graph_loc, "w+") as f:
-			f.writelines(sorted(graph_lines, key=lambda s: useful_rules.index(s[:4])))
-	
-	if args.graph:
-		generate_graph(graph_loc, args.temp_dir, f"{domain_name}_{instance_name}")
+		f.writelines(s+'\n' for s in output)
 	
 if __name__ == '__main__':
 	main()

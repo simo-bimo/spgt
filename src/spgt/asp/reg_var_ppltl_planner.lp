@@ -29,7 +29,7 @@ holds(N1, R) :- next(N1, E, N2), use_reg(N2, F), reg(R, F, E).
 :- {next(_, _, N)}0, holds(N, F), F=yest(G), G!=falsum.
 
 % We do not wish to regess too deep.
-:- holds(N, F), reg_depth(F, C), C > numNodes.
+:- holds(N, F), reg_depth(F, C), C > numNodes, {reg_depth(F, X): X < C}=0.
 
 % Contradictory or unsatisfiable formulae cannot hold.
 :- holds(N, G), holds(N, H), G=has_value(Var, V1), H=has_value(Var, V2), V1 != V2.

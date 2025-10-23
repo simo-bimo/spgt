@@ -1,9 +1,13 @@
 reg_depth(F, 0) :- prec(F, A).
 reg_depth(F, 0) :- goal(F).
-reg_depth((G;H), C) :- reg_depth(F, C), F=conj(G, H).
-reg_depth((G;H), C) :- reg_depth(F, C), F=disj(G, H).
-reg_depth((G;H), C) :- reg_depth(F, C), F=since(G, H).
-reg_depth((G;H), C) :- reg_depth(F, C), F=dual_since(G, H).
+reg_depth(G, C) :- reg_depth(F, C), F=conj(G, H).
+reg_depth(H, C) :- reg_depth(F, C), F=conj(G, H).
+reg_depth(G, C) :- reg_depth(F, C), F=disj(G, H).
+reg_depth(H, C) :- reg_depth(F, C), F=disj(G, H).
+reg_depth(G, C) :- reg_depth(F, C), F=since(G, H).
+reg_depth(H, C) :- reg_depth(F, C), F=since(G, H).
+reg_depth(G, C) :- reg_depth(F, C), F=dual_since(G, H).
+reg_depth(H, C) :- reg_depth(F, C), F=dual_since(G, H).
 reg_depth(G, C) :- reg_depth(F, C), F=neg(G).
 
 reg(FR, F, E) :- reg(FR, F, E, _).

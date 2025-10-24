@@ -37,6 +37,7 @@ def get_args():
 					type=str, 
 					help="""Used to overwrite the goal of a domain.
 					Use -g ? or --goal=? to print out the available variables and symbols.
+					-g TELLME and --goal=TELLME also work.
 					""")
 	
 	parser.add_argument('-td', '--temp_dir',
@@ -80,7 +81,7 @@ def set_goal(arg_goal: str, t: Translator) -> Formula:
 	If arg_goal is the empty string, prints variables and symbols,
 	then asks for command line input of new goal.
 	'''
-	if arg_goal != "?":
+	if not arg_goal in ['?', 'TELLME']:
 		t.overwrite_goal(Formula.parse(arg_goal))
 		return
 	
@@ -116,7 +117,10 @@ def main():
 	
 	translator: Translator = Translator(args.domain, args.problem)
 	if not args.goal is None:
+		new_start = time()
 		set_goal(args.goal, translator)
+		# subtract the time spent choosing the goal.
+		start_time -= time() - new_start
 	
 	# The translator may already contain, or have been updated
 	# to contain ppltl formulae, in which case we need to use the

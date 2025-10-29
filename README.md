@@ -6,7 +6,7 @@ This planner is an extension of the [cfond-asp](https://github.com/ssardina-rese
 
 ## Installation
 
-There are two primary ways to install the planner. One can either use `pip` to install it directly from this repository:
+There are two ways to install the planner. One can either use `pip` to install it directly from this repository:
 ```bash
 pip install git+https://github.com/simo-bimo/spgt.git
 # or
@@ -98,10 +98,6 @@ produces the following:
 
 This essentially amounts to climbing up the ladder, and walking along the beam to position `4`. If at any time the agent fails, it walks back to position `0` and tries again.
 
-## Contributors
-
-Simon Dowd - simon@anldowd.com
-
 ## Design Choices
 
 Whenever the planner is invoked, it goes through the following essential steps:
@@ -117,3 +113,8 @@ Whenever the planner is invoked, it goes through the following essential steps:
 5. Save the output into `output/output.lp`.
 
 The planner is sound and complete for boolean goals and preconditions. For PPLTL formulae, it is sound for both strong and strong-cyclic solutions, but only proven complete for strong solutions. We suspect it is also complete in the strong-cyclic case.
+
+## Contributors
+
+Simon Dowd - simon@anldowd.com
+

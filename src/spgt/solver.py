@@ -114,12 +114,16 @@ def _create_and_solve(files: List[AnyStr], k: int = 1, extra_args: List[AnyStr] 
 	for f in files:
 		ctl.load(f)
 	ctl.ground()
+	# We only want a single stable model.
+	ctl.configuration.solve.models = 1
 		
 	with ctl.solve(yield_=True) as hdlr:
-		if hdlr.get().unsatisfiable:
-			return False
-		model = hdlr.model()
-	return atoms_from_model(model)
+		for model in hdlr:
+			atoms = atoms_from_model(model)
+			return atoms
+		return False
+	print("There was an error during solving.")
+	return False
 
 def solve_iteratively(args, files):
 	output = False

@@ -6,7 +6,7 @@ This planner is an extension of the [cfond-asp](https://github.com/ssardina-rese
 
 ## Installation
 
-There are two primary ways to install the planner. One can either use `pip` to install it directly from this repository:
+There are two ways to install the planner. One can either use `pip` to install it directly from this repository:
 ```bash
 pip install git+https://github.com/simo-bimo/spgt.git
 # or
@@ -48,7 +48,7 @@ There are several other flags available:
 - `--ppltl`: use the PPLTL regressor and planner instead of the boolean logic one.
 - `-g <formula>` or `--goal=<formula>`: used to overwrite the goal formula of the problem instance with `<formula>`.
 
-Overwriting goals supports the following syntax to represent finite domain propositional formulae or PDDL.
+Overwriting goals supports the following syntax to represent finite domain propositional formulae or PPLTL.
 
 - `(v = x)` the atomic statement that variable `v` takes value `x`. Use `trueValue` and `falseValue` to assign booleans.
 - `!F` the negation of `F`.

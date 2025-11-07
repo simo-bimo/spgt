@@ -126,36 +126,36 @@ reg(FR, F, E, C+1) :-
 	reg_depth(F, C).
 	
 % Regression atoms
-reg(verum, P, E) :-
+reg(verum, P, E, 0) :-
 	query_reg(P, E),
 	P=has_value(Variable, Value),
 	add(E, Variable, Value).
 
-reg(falsum, P, E) :-
+reg(falsum, P, E, 0) :-
 	query_reg(P, E),
 	P=has_value(Variable, Value),
 	del(E, Variable, Value).
 
-reg(P, P, E) :-
+reg(P, P, E, 0) :-
 	query_reg(P, E),
 	P=has_value(Variable, Value),
 	not add(E, Variable, Value),
 	not del(E, Variable, Value).
 
 % Regression Neg. Literals.
-reg(verum, F, E) :-
+reg(verum, F, E, 0) :-
 	query_reg(F, E),
 	F=neg(P),
 	P=has_value(Variable, Value),
 	del(E, Variable, Value).
 	
-reg(falsum, F, E) :-
+reg(falsum, F, E, 0) :-
 	query_reg(F, E),
 	F=neg(P),
 	P=has_value(Variable, Value),
 	add(E, Variable, Value).
 	
-reg(F, F, E) :-
+reg(F, F, E, 0) :-
 	query_reg(F, E),
 	F = neg(P),
 	P=has_value(Variable, Value),

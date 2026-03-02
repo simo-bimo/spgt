@@ -1,14 +1,20 @@
-from typing import List, Tuple, Set, Dict, AnyStr
+from typing import List, Tuple, Set, Dict, AnyStr, Iterable
 import itertools
 
 import pddl
 from pddl import logic as lg
+
+import subprocess
+import os
+
+from abc import ABC, abstractmethod
 
 from fondutils.normalizer import normalize
 
 from spgt.asp.symbols import *
 from spgt.base.domain import GroundedAction, GroundedEffect
 from spgt.base.logic import Formula, Verum, Falsum, Atom, Neg, Conj, Disj, Assign, Variable, Value
+from spgt.sasloader import load_sas
 
 # Read in a domain file and a problem file
 # Ensure it's in the normalised form (oneof)
@@ -20,7 +26,100 @@ from spgt.base.logic import Formula, Verum, Falsum, Atom, Neg, Conj, Disj, Assig
 # Need an abstract representation of the problem which keeps track of a
 # map of formulas to their object identifiers. (including atoms etc)
 
-class Translator:
+class Translator(ABC):
+	variables: Iterable[Variable]
+	initial_values: Iterable[Tuple[Variable, Value]]
+	converted_goal: Formula
+	grounded_actions: Iterable[GroundedAction]
+	grounded_effects: Iterable[GroundedEffect]
+	
+	def is_ppltl(self):
+		for f in [self.converted_goal] + [a.precondition for a in self.grounded_actions]:
+			if f.is_ppltl():
+				return True
+		return False
+	
+	def overwrite_goal(self, new_goal: Formula):
+		'''
+		Overwrites the goal read from ASP with the given formula.
+		Does not perform any conversions or verification. If the new formula
+		refers to nonexistent variables, the output program is simply invalid.
+		'''
+		self.converted_goal = new_goal
+	
+	def save_ASP(self, path):
+		with open(path, "w+") as f:
+			f.writelines(self.as_ASP())
+	
+	def as_ASP(self):
+		'''
+		Yields the ASP rules describing the domain.
+		'''
+		for v in self.variables:
+			for r in v.as_ASP():
+				yield r + "\n"
+		
+		yield "\n"
+		
+		for var, val in self.initial_values:
+			yield ASP_INIT_SYMBOL + f"({make_safe(var.symbol)}, {val.as_ASP()})." + "\n"
+		
+		yield "\n"
+		
+		yield ASP_GOAL_SYMBOL + f"({self.converted_goal.as_ASP()}).\n"
+		
+		yield "\n"
+		
+		for a in self.grounded_actions:
+			for r in a.as_ASP():
+				yield r + "\n"
+		
+		yield "\n"
+		for e in self.grounded_effects:
+			for r in e.as_ASP():
+				yield r + "\n"
+	
+
+class TranslatorSAS(Translator):
+	def __init__(self, domain_path: str, instance_path: str, sas_translator_path: str, tempdir: str):
+		self.domain_path = domain_path
+		self.instance_path = instance_path
+		self.sas_translator_path = os.path.abspath(sas_translator_path)
+		self.tempdir = os.path.abspath(tempdir)
+		
+		
+		# Call SAS Translator
+		sas_output = self._translate_to_sas()
+		
+		# Load SAS problem
+		self.variables, self.initial_values, self.converted_goal, self.grounded_actions = load_sas(sas_output)
+		self.grounded_effects = []
+		
+		for a in self.grounded_actions:
+			self.grounded_effects += a.effects 
+		
+		pass
+	
+	def _translate_to_sas(self) -> List[str]:
+		args = [
+			self.sas_translator_path,
+			self.domain_path,
+			self.instance_path
+		]
+		
+		proc = subprocess.run(
+			args,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.STDOUT,
+			text=True
+		)
+		
+		with open(os.join(self.tempdir, "output.sas")) as f:
+			f.write(proc.output)
+				
+		return proc.output.split('\n')
+
+class TranslatorManual(Translator):
 	def __init__(self, domain_path: str, instance_path: str, predicate_map: Dict[str, str] = {}, process_immediate: bool = True):
 		self.domain_path = domain_path
 		self.instance_path = instance_path
@@ -68,12 +167,6 @@ class Translator:
 		# Things like `next_fwd` in action preconditions. If it's never changed or added, don't even include it as a variable.
 		# self.converted_initial = set(f)
 	
-	def is_ppltl(self):
-		for f in [self.converted_goal] + [a.precondition for a in self.grounded_actions]:
-			if f.is_ppltl():
-				return True
-		return False
-	
 	def __identify_unary_variables(self):
 		'''
 		Identifies which predicates may be mapped one-to-one to variables.
@@ -99,8 +192,8 @@ class Translator:
 			# i.e. it never holds for more than two objects at once.
 			skip = False
 			for e in self.all_effects:
-				e_positive = Translator.__get_positive_predicates(e)
-				e_negative = Translator.__get_negative_predicates(e)
+				e_positive = TranslatorManual.__get_positive_predicates(e)
+				e_negative = TranslatorManual.__get_negative_predicates(e)
 				
 				positive_occurences = set(p for p in e_positive if p.name == pred.name)
 				negative_occurences = set(p for p in e_negative if p.name == pred.name)
@@ -261,7 +354,7 @@ class Translator:
 		Identifies which predicates do not appear in any effects,
 		and so can never change from the initial state
 		'''
-		predicates_in_effects = set([pred.name for effect in self.all_effects for pred in Translator.__get_predicates_in_formula(effect)])
+		predicates_in_effects = set([pred.name for effect in self.all_effects for pred in TranslatorManual.__get_predicates_in_formula(effect)])
 		return set([p.name for p in self.predicates]) - predicates_in_effects
 	
 	def __get_child_types(self, type_name: str):
@@ -360,8 +453,8 @@ class Translator:
 		'''
 		# positive and negative literals in the precondition which are unchanging.
 		# We assume preconditions do not contain disjunctions.
-		requirements = [p for p in Translator.__get_positive_predicates(action.precondition) if p.name in self.unchanging_predicates]
-		prohibitions = [p for p in Translator.__get_negative_predicates(action.precondition) if p.name in self.unchanging_predicates]
+		requirements = [p for p in TranslatorManual.__get_positive_predicates(action.precondition) if p.name in self.unchanging_predicates]
+		prohibitions = [p for p in TranslatorManual.__get_negative_predicates(action.precondition) if p.name in self.unchanging_predicates]
 		
 		requirement_satisfiers = []
 		for predicate in requirements:
@@ -457,50 +550,9 @@ class Translator:
 		
 		return new_actions
 	
-	def overwrite_goal(self, new_goal: Formula):
-		'''
-		Overwrites the goal read from ASP with the given formula.
-		Does not perform any conversions or verification. If the new formula
-		refers to nonexistent variables, the output program is simply invalid.
-		'''
-		self.converted_goal = new_goal
-	
-	def save_ASP(self, path):
-		with open(path, "w+") as f:
-			f.writelines(self.as_ASP())
-	
-	def as_ASP(self):
-		'''
-		Yields the ASP rules describing the domain.
-		'''
-		for v in self.variables:
-			for r in v.as_ASP():
-				yield r + "\n"
-		
-		yield "\n"
-		
-		for var, val in self.initial_values:
-			yield ASP_INIT_SYMBOL + f"({make_safe(var.symbol)}, {val.as_ASP()})." + "\n"
-		
-		yield "\n"
-		
-		yield ASP_GOAL_SYMBOL + f"({self.converted_goal.as_ASP()}).\n"
-		
-		yield "\n"
-		
-		for a in self.grounded_actions:
-			for r in a.as_ASP():
-				yield r + "\n"
-		
-		yield "\n"
-		for e in self.grounded_effects:
-			for r in e.as_ASP():
-				yield r + "\n"
-		
-	
 	@staticmethod
 	def __get_predicates_in_formula(formula: lg.base.Formula) -> Set:
-		return Translator.__get_positive_predicates(formula) | Translator.__get_negative_predicates(formula)
+		return TranslatorManual.__get_positive_predicates(formula) | TranslatorManual.__get_negative_predicates(formula)
 	
 	@staticmethod
 	def __get_positive_predicates(formula: lg.base.Formula) -> Set:
@@ -508,7 +560,7 @@ class Translator:
 		Returns all positive predicates in a formula (Pred(...)).
 		'''
 		if isinstance(formula, lg.base.BinaryOp):
-			recurses = [Translator.__get_positive_predicates(sub) for sub in formula._operands]
+			recurses = [TranslatorManual.__get_positive_predicates(sub) for sub in formula._operands]
 			if not recurses:
 				return set()
 			return set.union(*recurses)
@@ -522,7 +574,7 @@ class Translator:
 		Returns all negative predicates in a formula (Not(Pred(...))).
 		'''
 		if isinstance(formula, lg.base.BinaryOp):
-			recurses = [Translator.__get_negative_predicates(sub) for sub in formula._operands]
+			recurses = [TranslatorManual.__get_negative_predicates(sub) for sub in formula._operands]
 			if not recurses:
 				return set()
 			return set.union(*recurses)

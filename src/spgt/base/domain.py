@@ -72,7 +72,7 @@ class GroundedEffect:
 	
 	def __hash__(self):
 		return self.__repr__().__hash__()
-	
+
 class GroundedAction:
 	def __init__(self, name, precondition: Formula, effects: list[GroundedEffect]):
 		self.name = name
@@ -81,7 +81,7 @@ class GroundedAction:
 
 	def as_ASP(self):
 		'''
-		Returns a list of ASP rules describe the effect.
+		Returns a list of ASP rules describing the action.
 		'''
 		ls = []
 		ls.append(ASP_ACTION_SYMBOL + f'({make_safe(self.name)}).')

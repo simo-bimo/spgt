@@ -60,9 +60,10 @@ def formula_from_tuples(var_mapping: Dict[int, Variable], tuples: List[Tuple[int
 
 def read_variable(var_lines: List[str]) -> Variable:
 	'''
-	Converts an appropriate list of SAS lines into a variable.
+	Converts an appropriate list of SAS lines into a variable. Ignores axiom layer.
 	'''
 	name = var_lines[0]
+	# ignored for now
 	axiom_layer = var_lines[1]
 	num_values = int(var_lines[2])
 	values = list(str(x) for x in range(num_values))
@@ -148,7 +149,8 @@ def read_actions(sas_lines: List[str], var_mapping: Dict[int, Variable]) -> List
 	
 	for name,effects in name_to_effects.values():
 		effect_index, prevail_conditions, postvail_conditions = effects.pop()
-		# We simply use the first effect for the precondition since they should be identical across all effects.
+		# We simply use the first effect for the precondition, since it should be
+		# identical across all effects.
 		precondition = formula_from_tuples(var_mapping, prevail_conditions)
 		
 		converted_effects = []
@@ -165,7 +167,6 @@ def read_actions(sas_lines: List[str], var_mapping: Dict[int, Variable]) -> List
 	
 	return actions
 	
-
 def load_sas(sas_lines: List[str]) -> Tuple[List[Variable]]:
 	
 	variables = read_of_type(sas_lines, 'variable', read_variable)

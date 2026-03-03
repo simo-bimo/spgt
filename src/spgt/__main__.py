@@ -3,7 +3,7 @@ import os
 
 from typing import List
 
-from spgt.translator import Translator, TranslatorManual
+from spgt.translator import Translator, TranslatorManual, TranslatorSAS
 from spgt.solver import solve
 from spgt.base.logic import Formula
 
@@ -115,7 +115,7 @@ def main():
 	
 	start_time = time()
 	
-	translator: Translator = TranslatorManual(args.domain, args.problem)
+	translator: Translator = TranslatorSAS(args.domain, args.problem)
 	if not args.goal is None:
 		new_start = time()
 		set_goal(args.goal, translator)

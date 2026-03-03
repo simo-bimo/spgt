@@ -15,10 +15,10 @@ def read_between_indices(sas_lines: List[str], start: str, end: str) -> List[Lis
 	
 	appending: bool = False
 	for line in sas_lines:		
-		if line == start:
+		if start in line:
 			appending = True
 			continue
-		elif line == end:
+		elif end in line:
 			appending = False
 			sections.append(current_section)
 			current_section = []
@@ -45,7 +45,7 @@ def formula_from_tuples(var_mapping: Dict[int, Variable], tuples: List[Tuple[int
 	'''
 	
 	# TODO: Converts an int value to an `Value`, but should really just be an int.
-	assigns = [Assign(var_mapping[v], Atom(str(var_mapping[x]))) for v,x in tuples]
+	assigns = [Assign(var_mapping[v], Atom(str(x))) for v,x in tuples]
 	
 	if len(assigns) == 1:
 		return assigns.pop()
@@ -85,7 +85,7 @@ def read_goal(var_mapping: Dict[int, Variable], goal_lines: List[str]) -> Formul
 	tuples = [(int(s[0]), int(s[1])) for s in tuples]
 	return formula_from_tuples(var_mapping, tuples)
 
-def read_det_action(action_lines: List[str], det_dup_str: str = '_detup_') -> Tuple[str, int, List[Tuple[int, int]], List[Tuple[int, int]]]:
+def read_det_action(action_lines: List[str], det_dup_str: str = '_detdup_') -> Tuple[str, int, List[Tuple[int, int]], List[Tuple[int, int]]]:
 	'''
 	Converts an appropriate list of SAS lines into the components of an action.
 	Identifies if it is non-deterministic or not.
@@ -96,7 +96,8 @@ def read_det_action(action_lines: List[str], det_dup_str: str = '_detup_') -> Tu
 	# The ID of this effect if it is part of the all outcomes determinisation.
 	effect_index = -1
 	if index > -1:
-		effect_index = int(name[index+8:])
+		
+		effect_index = int(name[index+len(det_dup_str):].split(' ').pop(0))
 		name = name[:index]
 	
 	# we use the term prevail as in the SAS literature,
@@ -147,14 +148,14 @@ def read_actions(sas_lines: List[str], var_mapping: Dict[int, Variable]) -> List
 	
 	actions = []
 	
-	for name,effects in name_to_effects.values():
+	for name,effects in name_to_effects.items():
 		effect_index, prevail_conditions, postvail_conditions = effects.pop()
 		# We simply use the first effect for the precondition, since it should be
 		# identical across all effects.
 		precondition = formula_from_tuples(var_mapping, prevail_conditions)
 		
-		converted_effects = []
 		e = effect_from_conditions(var_mapping, name, effect_index, postvail_conditions)
+		converted_effects = [e]
 		
 		while len(effects) > 0:
 			effect_index, prevail_conditions, postvail_conditions = effects.pop()
@@ -174,9 +175,9 @@ def load_sas(sas_lines: List[str]) -> Tuple[List[Variable]]:
 	
 	var_mapping = dict((get_index(v),v) for v in variables)
 	
-	initial = read_of_type(var_mapping, sas_lines, 'state', read_initial_state)
+	initial = read_of_type(sas_lines, 'state', lambda x: read_initial_state(var_mapping, x)).pop()
 	
-	goal = read_of_type(var_mapping, sas_lines, 'goal', read_goal)
+	goal = read_of_type(sas_lines, 'goal', lambda x: read_goal(var_mapping, x)).pop()
 	
 	actions = read_actions(sas_lines, var_mapping)
 	

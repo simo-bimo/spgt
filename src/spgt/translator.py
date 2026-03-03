@@ -6,6 +6,7 @@ from pddl import logic as lg
 
 import subprocess
 import os
+import shutil
 
 from abc import ABC, abstractmethod
 
@@ -15,6 +16,7 @@ from spgt.asp.symbols import *
 from spgt.base.domain import GroundedAction, GroundedEffect
 from spgt.base.logic import Formula, Verum, Falsum, Atom, Neg, Conj, Disj, Assign, Variable, Value
 from spgt.sasloader import load_sas
+from spgt.names import SAS_TRANSLATOR_PATH
 
 # Read in a domain file and a problem file
 # Ensure it's in the normalised form (oneof)
@@ -35,6 +37,7 @@ class Translator():
 	
 	def is_ppltl(self):
 		for f in [self.converted_goal] + [a.precondition for a in self.grounded_actions]:
+			print(f)
 			if f.is_ppltl():
 				return True
 		return False
@@ -81,12 +84,12 @@ class Translator():
 	
 
 class TranslatorSAS(Translator):
-	def __init__(self, domain_path: str, instance_path: str, sas_translator_path: str, tempdir: str):
+	def __init__(self, domain_path: str, instance_path: str, sas_translator_path: str=SAS_TRANSLATOR_PATH, tempdir: str="output"):
 		self.domain_path = domain_path
 		self.instance_path = instance_path
 		self.sas_translator_path = os.path.abspath(sas_translator_path)
 		self.tempdir = os.path.abspath(tempdir)
-		
+		self.sas_output_path = os.path.join(self.tempdir, "output.sas")	
 		
 		# Call SAS Translator
 		sas_output = self._translate_to_sas()
@@ -101,10 +104,17 @@ class TranslatorSAS(Translator):
 		pass
 	
 	def _translate_to_sas(self) -> List[str]:
+		pyexec = shutil.which("python")
+		if not len(pyexec):
+			pyexec = shutil.which("python3")
+		
+		
 		args = [
+			pyexec,
 			self.sas_translator_path,
 			self.domain_path,
-			self.instance_path
+			self.instance_path,
+			f"--sas-file={os.path.abspath(self.sas_output_path)}"
 		]
 		
 		proc = subprocess.run(
@@ -114,10 +124,12 @@ class TranslatorSAS(Translator):
 			text=True
 		)
 		
-		with open(os.join(self.tempdir, "output.sas")) as f:
-			f.write(proc.output)
-				
-		return proc.output.split('\n')
+		sas_lines = ["ERROR READING"]
+		
+		with open(self.sas_output_path, "r") as f:
+			sas_lines = [l.strip() for l in f.readlines()]	
+			
+		return sas_lines
 
 class TranslatorManual(Translator):
 	def __init__(self, domain_path: str, instance_path: str, predicate_map: Dict[str, str] = {}, process_immediate: bool = True):

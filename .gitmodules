@@ -1,0 +1,3 @@
+[submodule "src/spgt/translator-fond"]
+	path = src/spgt/translator-fond
+	url = https://github.com/ssardina-research/translator-fond.git

@@ -12,3 +12,7 @@ ASP_REGRESSOR_PATH  = os.path.abspath(os.path.join(ASP_CODE_DIR, "regressor_vari
 ASP_PPLTL_REGRESSOR_PATH  = os.path.abspath(os.path.join(ASP_CODE_DIR, "regressor_var_ppltl.lp"))
 
 ASP_CLINGRAPH_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "clingraph_generator.lp"))
+
+SAS_TRANSLATOR_PATH = os.path.abspath(
+	os.path.join(ROOT_DIR, "translator-fond", "translate-allout", "translate", "translate.py")
+)

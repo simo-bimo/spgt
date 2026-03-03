@@ -116,13 +116,23 @@ def read_det_action(action_lines: List[str], det_dup_str: str = '_detdup_') -> T
 	`det_dup_str` is the deterministic duplicate string, used to identify the individual effects of a common action.
 	'''
 	name = action_lines[0]
-	index = name.lower().find(det_dup_str)
+	start_index = name.lower().find(det_dup_str)
+	
 	# The ID of this effect if it is part of the all outcomes determinisation.
 	effect_index = -1
-	if index > -1:
-		# TODO: Make this more robust - currently a hacky method to read the string off.
-		effect_index = int(name[index+len(det_dup_str):].split(' ').pop(0))
-		name = name[:index]
+	if start_index > -1:
+		end_index = start_index + len(det_dup_str)
+		
+		# read out the next number after det_dup_str
+		effect_index_str = ''
+		for c in name[end_index:]:
+			if not c.isdigit():
+				break
+			effect_index_str += c
+		
+		effect_index = int(effect_index_str)
+		
+		name = name[:start_index] + name[end_index+len(effect_index_str):]
 	
 	# we use the term prevail as in the SAS literature,
 	# to distinguish preconditions, which refer to conditional effects in SAS.
@@ -154,6 +164,8 @@ def effect_from_conditions(var_mapping: Dict[int, Variable], name: str, effect_i
 	Takes an interpreted operator and converts it to an effect, referring to the appropriate variables given in `var_mapping`
 	'''
 	eff_name = name + '_effect_' + str(effect_index)
+	if effect_index < 0:
+		eff_name = name + '_effect'
 	return GroundedEffect.from_formula(eff_name, formula_from_tuples(var_mapping, postvail_conditions))
 
 def read_actions(sas_lines: List[str], var_mapping: Dict[int, Variable]) -> List[GroundedAction]:

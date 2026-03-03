@@ -37,7 +37,6 @@ class Translator():
 	
 	def is_ppltl(self):
 		for f in [self.converted_goal] + [a.precondition for a in self.grounded_actions]:
-			print(f)
 			if f.is_ppltl():
 				return True
 		return False
@@ -95,10 +94,15 @@ class TranslatorSAS(Translator):
 		sas_output = self._translate_to_sas()
 		
 		# Load SAS problem
-		self.variables, self.initial_values, self.converted_goal, self.grounded_actions = load_sas(sas_output)
+		self.variables, self.initial_values, self.converted_goal, self.grounded_actions, self.axiom_rules = load_sas(sas_output)
 		self.grounded_effects = []
 		
+		if self.converted_goal in self.axiom_rules:
+			self.converted_goal = self.axiom_rules[self.converted_goal]
+		
 		for a in self.grounded_actions:
+			if a.precondition in self.axiom_rules:
+				a.precondition = self.axiom_rules[self.converted_goal]
 			self.grounded_effects += a.effects 
 		
 		pass
@@ -594,7 +598,6 @@ class TranslatorManual(Translator):
 			return {formula._arg}
 		return set()
 	
-		
 if __name__ == '__main__':
 	t = Translator(
 		"/home/simon/Documents/Uni/Honours/Code/robot_4/domain-fond_all_outcomes.pddl",

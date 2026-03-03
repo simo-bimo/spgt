@@ -297,9 +297,10 @@ class Atom(Formula):
 		return make_safe(self.symbol)
 
 class Variable(Formula):
-	def __init__(self, name: str, domain: List[str]):
+	def __init__(self, name: str, domain: List[str], axiom_layer: int = -1):
 		self.symbol = name
 		self.domain = domain
+		self.axiom_layer = axiom_layer
 	
 	def __eq__(self, other):
 		return isinstance(other, Variable) \

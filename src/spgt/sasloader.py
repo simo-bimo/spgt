@@ -58,16 +58,42 @@ def formula_from_tuples(var_mapping: Dict[int, Variable], tuples: List[Tuple[int
 	
 	return f
 
+def flattened_formula_from_tuples(var_mapping: Dict[int, Variable],
+								  derived_var_mapping: Dict[Variable, Formula], tuples: List[Tuple[int, int]]) -> Formula:
+	'''
+	Converts a list of assignments to a formula, flattening derived variables into their corresponding formulae.
+	'''
+	# TODO: Converts an int value to an `Value`, but should really just be an int.
+	components = []
+	
+	for v,x in tuples:
+		var = var_mapping[v]
+		f = Assign(var, Atom(str(x)))
+		if var in derived_var_mapping:
+			f = derived_var_mapping[var]
+		components.append(f)
+	
+	if len(components) == 1:
+		return components.pop()
+	
+	# TODO: Currently returns a nested et of binary operators.
+	# Should become a k-ary operator once regression is implemented.	
+	f = Conj(components.pop(), components.pop())
+	while len(components) > 1:
+		f = Conj(f, components.pop())
+	
+	return f
+	
 def read_variable(var_lines: List[str]) -> Variable:
 	'''
-	Converts an appropriate list of SAS lines into a variable. Ignores axiom layer.
+	Converts an appropriate list of SAS lines into a variable.
 	'''
 	name = var_lines[0]
 	# ignored for now
-	axiom_layer = var_lines[1]
+	axiom_layer = int(var_lines[1])
 	num_values = int(var_lines[2])
 	values = list(str(x) for x in range(num_values))
-	return Variable(name, values)
+	return Variable(name, values, axiom_layer)
 
 def read_initial_state(var_mapping: Dict[int, Variable], state_lines: List[str]) -> List[Tuple[Variable, Atom]]:
 	'''
@@ -75,15 +101,13 @@ def read_initial_state(var_mapping: Dict[int, Variable], state_lines: List[str])
 	'''
 	return [(var_mapping[index], Atom(s)) for index,s in enumerate(state_lines)]
 
-def read_goal(var_mapping: Dict[int, Variable], goal_lines: List[str]) -> Formula:
+def read_goal(goal_lines: List[str]) -> List[Tuple[int, int]]:
 	'''
-	Reads in the goal and returns it as a formula.
-	Does not remove axioms - instead leaves them where they are.
+	Reads in the goal and returns it as a list of Variable Value pairs.
 	'''
 	num_pairings = int(goal_lines[0])
 	tuples = [s.split(' ') for s in goal_lines[1:]]
-	tuples = [(int(s[0]), int(s[1])) for s in tuples]
-	return formula_from_tuples(var_mapping, tuples)
+	return [(int(s[0]), int(s[1])) for s in tuples]
 
 def read_det_action(action_lines: List[str], det_dup_str: str = '_detdup_') -> Tuple[str, int, List[Tuple[int, int]], List[Tuple[int, int]]]:
 	'''
@@ -96,7 +120,7 @@ def read_det_action(action_lines: List[str], det_dup_str: str = '_detdup_') -> T
 	# The ID of this effect if it is part of the all outcomes determinisation.
 	effect_index = -1
 	if index > -1:
-		
+		# TODO: Make this more robust - currently a hacky method to read the string off.
 		effect_index = int(name[index+len(det_dup_str):].split(' ').pop(0))
 		name = name[:index]
 	
@@ -167,8 +191,49 @@ def read_actions(sas_lines: List[str], var_mapping: Dict[int, Variable]) -> List
 		actions.append(a)
 	
 	return actions
+
+def read_axiom_rule(rule_lines: str) -> Tuple[List[Tuple[int, int]], Tuple[int, int]]:
+	'''
+	Reads in a single axiom rule.
+	'''
+	number_conditions = int(rule_lines[0])
+	condition_tuples = []
+	for i in range(1, 1+number_conditions):
+		var, val = tuple(rule_lines[i].split(' '))
+		condition_tuples.append((int(var), int(val)))
 	
-def load_sas(sas_lines: List[str]) -> Tuple[List[Variable]]:
+	var, old_val, new_val = tuple(rule_lines[number_conditions+1].split(' '))
+	# We ignore the prerequisite on the variable value, since it is representing a formula, it was either true or false.
+	# condition_tuples.append((int(var), int(old_val)))
+	
+	return condition_tuples, (int(var), int(new_val))
+
+def expand_axioms(var_mapping: Dict[int, Variable], axioms: List[Tuple[List[Tuple[int, int]], Tuple[int, int]]]) -> Dict[Variable, Formula]:
+	'''
+	Converts the set of axioms into a dictionary mapping derived variables to flattened formulae.
+	'''
+	# Sorting ensures that flattened_formula_from_tuples does not lead to
+	# any loops.
+	sorted_axioms = sorted(axioms, key=lambda x: var_mapping[x[1][0]].axiom_layer)
+	
+	mapping = {}
+	
+	for conditions,(var_index, val) in sorted_axioms:
+		var = var_mapping[var_index]
+		if var.axiom_layer < 0:
+			raise ValueError('Axiom layer assigned incorrectly.')
+		if not var in mapping:
+			mapping[var] = flattened_formula_from_tuples(var_mapping, mapping, conditions)
+		else:
+			mapping[var] = Disj(mapping[var], flattened_formula_from_tuples(var_mapping, mapping, conditions))
+	
+	return mapping
+
+def load_sas(sas_lines: List[str]) -> Tuple[List[Variable],
+											List[Tuple[Variable, Atom]],
+											Formula,
+											List[GroundedAction],
+											List[Tuple[Formula, Tuple[Variable, Atom]]]]:
 	
 	variables = read_of_type(sas_lines, 'variable', read_variable)
 	get_index = lambda var: int(var.symbol[3:])
@@ -177,8 +242,15 @@ def load_sas(sas_lines: List[str]) -> Tuple[List[Variable]]:
 	
 	initial = read_of_type(sas_lines, 'state', lambda x: read_initial_state(var_mapping, x)).pop()
 	
-	goal = read_of_type(sas_lines, 'goal', lambda x: read_goal(var_mapping, x)).pop()
+	unconverted_goal = read_of_type(sas_lines, 'goal', read_goal).pop()
 	
 	actions = read_actions(sas_lines, var_mapping)
 	
-	return variables, initial, goal, actions
+	unconverted_axiom_rules = read_of_type(sas_lines, 'rule', read_axiom_rule)
+	
+	# Flattens axioms into formulae.
+	axiom_rules = expand_axioms(var_mapping, unconverted_axiom_rules)
+	
+	goal = flattened_formula_from_tuples(var_mapping, axiom_rules, unconverted_goal)
+	
+	return variables, initial, goal, actions, axiom_rules

@@ -215,7 +215,8 @@ def read_axiom_rule(rule_lines: str) -> Tuple[List[Tuple[int, int]], Tuple[int, 
 		condition_tuples.append((int(var), int(val)))
 	
 	var, old_val, new_val = tuple(rule_lines[number_conditions+1].split(' '))
-	# We ignore the prerequisite on the variable value, since it is representing a formula, it was either true or false.
+	# We ignore the prerequisite on the variable value, since including them
+	# would lead to a self-referential condition when flattening the axiom.
 	# condition_tuples.append((int(var), int(old_val)))
 	
 	return condition_tuples, (int(var), int(new_val))

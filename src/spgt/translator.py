@@ -26,7 +26,7 @@ from spgt.sasloader import load_sas
 # Need an abstract representation of the problem which keeps track of a
 # map of formulas to their object identifiers. (including atoms etc)
 
-class Translator(ABC):
+class Translator():
 	variables: Iterable[Variable]
 	initial_values: Iterable[Tuple[Variable, Value]]
 	converted_goal: Formula
@@ -148,7 +148,7 @@ class TranslatorManual(Translator):
 		
 		
 		# Identify which predicates are not in effects, i.e. cannot be changed.
-		self.unchanging_predicates = set(p for p in self.__calculate_unchanging_predicates())
+		self.unchanging_predicates = set(p for p in self._calculate_unchanging_predicates())
 		self.variables = set()
 		self.initial_values = set()
 		
@@ -167,7 +167,7 @@ class TranslatorManual(Translator):
 		# Things like `next_fwd` in action preconditions. If it's never changed or added, don't even include it as a variable.
 		# self.converted_initial = set(f)
 	
-	def __identify_unary_variables(self):
+	def _identify_unary_variables(self):
 		'''
 		Identifies which predicates may be mapped one-to-one to variables.
 		Yields key value pairs of predicate names to variables.
@@ -183,7 +183,7 @@ class TranslatorManual(Translator):
 				continue
 			
 			# ensure there is only one initial value:
-			init_values = self.__get_initial_values(pred)
+			init_values = self._get_initial_values(pred)
 			if len(init_values) != 1:
 				continue
 			
@@ -192,8 +192,8 @@ class TranslatorManual(Translator):
 			# i.e. it never holds for more than two objects at once.
 			skip = False
 			for e in self.all_effects:
-				e_positive = TranslatorManual.__get_positive_predicates(e)
-				e_negative = TranslatorManual.__get_negative_predicates(e)
+				e_positive = TranslatorManual._get_positive_predicates(e)
+				e_negative = TranslatorManual._get_negative_predicates(e)
 				
 				positive_occurences = set(p for p in e_positive if p.name == pred.name)
 				negative_occurences = set(p for p in e_negative if p.name == pred.name)
@@ -217,7 +217,7 @@ class TranslatorManual(Translator):
 				continue
 			
 			var_domain = [
-				obj.name for t in pred.terms[0].type_tags for obj in self.__objects_of_type(t)
+				obj.name for t in pred.terms[0].type_tags for obj in self._objects_of_type(t)
 			]
 			
 			variable = Variable(pred.name, var_domain)
@@ -227,7 +227,7 @@ class TranslatorManual(Translator):
 			
 			yield (pred.name, variable)
 	
-	def __get_variable(self, predicate, mappings: Dict[AnyStr, AnyStr] = {}, check_exists: bool = True):
+	def _get_variable(self, predicate, mappings: Dict[AnyStr, AnyStr] = {}, check_exists: bool = True):
 		'''
 		Returns the Variable,Value pair corresponding to a given predicate.
 		May may be a grounded predicate with True/False value, may be a
@@ -273,7 +273,7 @@ class TranslatorManual(Translator):
 		
 		return var, Value(ASP_TRUE_VALUE)
 		
-	def __ground_predicate(self, predicate):
+	def _ground_predicate(self, predicate):
 		'''
 		Generates every possible choice of inputs to a predicate,
 		Returns these as Variable,Value pairs, where
@@ -284,15 +284,15 @@ class TranslatorManual(Translator):
 		for term in predicate.terms:
 			term_choices = []
 			for t_type in list(term.type_tags):
-				term_choices += [(term.name, obj.name) for obj in self.__objects_of_type(t_type)]
+				term_choices += [(term.name, obj.name) for obj in self._objects_of_type(t_type)]
 			choices.append(term_choices)
 		
-		inits_as_str = [tuple(t.name for t in i) for i in self.__get_initial_values(predicate)]
+		inits_as_str = [tuple(t.name for t in i) for i in self._get_initial_values(predicate)]
 		for choice in itertools.product(*choices):
 			mapping = dict(choice)
 			
 			# We don't check if the variable exists because this is when we are adding it.
-			var, val = self.__get_variable(predicate, mapping, check_exists=False)
+			var, val = self._get_variable(predicate, mapping, check_exists=False)
 			if tuple(mapping.values()) in inits_as_str:
 				yield var, Value(ASP_TRUE_VALUE)
 			else:
@@ -308,7 +308,7 @@ class TranslatorManual(Translator):
 		
 		# Non-trivial variables
 		# Sets the initial values on it's own.
-		self.unary_predicate_variable_lookup = dict(self.__identify_unary_variables())
+		self.unary_predicate_variable_lookup = dict(self._identify_unary_variables())
 		
 		for p in self.predicates:
 			if p.name in self.unchanging_predicates:
@@ -322,20 +322,20 @@ class TranslatorManual(Translator):
 			
 			# We get the initial values of the predicate.
 
-			for var, val in self.__ground_predicate(p):
+			for var, val in self._ground_predicate(p):
 				self.variables.add(var)
 				self.initial_values.add((var, val))
 			
 		# Actions.
 		for a in self.actions:
 			# also populates the grounded effects
-			self.grounded_actions.update(self.__instantiate_action(a))
+			self.grounded_actions.update(self._instantiate_action(a))
 		
 		# The goal shouldn't have any parameters in it, so we do not need
 		# a variable mapping
-		self.converted_goal = self.__convert_formula(self.instance.goal, {})
+		self.converted_goal = self._convert_formula(self.instance.goal, {})
 		
-	def __get_initial_values(self, predicate) -> Set:
+	def _get_initial_values(self, predicate) -> Set:
 		'''
 		Returns a set of tuples of objects for which this predicate is initially true.
 		'''
@@ -349,15 +349,15 @@ class TranslatorManual(Translator):
 			
 		return s
 	
-	def __calculate_unchanging_predicates(self) -> Set[str]:
+	def _calculate_unchanging_predicates(self) -> Set[str]:
 		'''
 		Identifies which predicates do not appear in any effects,
 		and so can never change from the initial state
 		'''
-		predicates_in_effects = set([pred.name for effect in self.all_effects for pred in TranslatorManual.__get_predicates_in_formula(effect)])
+		predicates_in_effects = set([pred.name for effect in self.all_effects for pred in TranslatorManual._get_predicates_in_formula(effect)])
 		return set([p.name for p in self.predicates]) - predicates_in_effects
 	
-	def __get_child_types(self, type_name: str):
+	def _get_child_types(self, type_name: str):
 		'''
 		Returns all type-children of the given type.
 		Assumes there are no circular dependencies in the type system.
@@ -365,22 +365,22 @@ class TranslatorManual(Translator):
 		for t in self.types:
 			if type_name == self.types[t]:
 				yield t
-				for sub_child in self.__get_child_types(t):
+				for sub_child in self._get_child_types(t):
 					yield sub_child
 		
-	def __objects_of_type(self, type_name: str):
+	def _objects_of_type(self, type_name: str):
 		'''
 		Yields all objects of a certain type.
 		'''
 		# assert type_name in self.types
-		types = set(self.__get_child_types(type_name))
+		types = set(self._get_child_types(type_name))
 		types.add(type_name)
 		for obj in self.objects:
 			# if one of our childtypes labels this object, then yield it.
 			if (set(obj.type_tags) & types):
 				yield obj
 		
-	def __predicate_to_var(self, predicate: lg.predicates.Predicate, mappings: Dict[AnyStr, AnyStr]={}):
+	def _predicate_to_var(self, predicate: lg.predicates.Predicate, mappings: Dict[AnyStr, AnyStr]={}):
 		'''
 		Converts a predicate to a formula in the translators types.
 		Mapped to a constant if the predicate is unchanging, or an assignment 
@@ -392,15 +392,15 @@ class TranslatorManual(Translator):
 		
 		if predicate.name in self.unchanging_predicates:
 			value = tuple(mappings[t.name] for t in predicate.terms)
-			inits_as_str = [tuple(t.name for t in i) for i in self.__get_initial_values(predicate)]
+			inits_as_str = [tuple(t.name for t in i) for i in self._get_initial_values(predicate)]
 			if value in inits_as_str:
 				return Verum()
 			return Falsum()
 		
-		var, val = self.__get_variable(predicate, mappings)
+		var, val = self._get_variable(predicate, mappings)
 		return Assign(var, val)
 
-	def __convert_formula(self, F: lg.base.Formula, mappings: Dict[str, str]) -> Formula:
+	def _convert_formula(self, F: lg.base.Formula, mappings: Dict[str, str]) -> Formula:
 		'''
 		Parses a PDDL Formula object into an equivalent formula in the Translator's type.
 		Uses mappings to assign variables to instantiated values as strings.
@@ -410,34 +410,34 @@ class TranslatorManual(Translator):
 		def binary_case(F: lg.base.BinaryOp, ftype: type):
 			ops = F._operands.copy()
 			if len(ops) < 2:
-				return self.__convert_formula(ops.pop(), mappings)
+				return self._convert_formula(ops.pop(), mappings)
 			
-			new_F = ftype(self.__convert_formula(ops.pop(), mappings), 
-				 self.__convert_formula(ops.pop(), mappings))
+			new_F = ftype(self._convert_formula(ops.pop(), mappings), 
+				 self._convert_formula(ops.pop(), mappings))
 			
 			while len(ops):
-				next_form = self.__convert_formula(ops.pop(), mappings)
+				next_form = self._convert_formula(ops.pop(), mappings)
 				new_F = ftype(next_form, new_F)
 			
 			return new_F
 			
 		def imply_case(F: lg.base.Imply):
-			a = self.__convert_formula(F.operands[0], mappings)
-			b = self.__convert_formula(F.operands[1], mappings)
+			a = self._convert_formula(F.operands[0], mappings)
+			b = self._convert_formula(F.operands[1], mappings)
 			return Disj(Neg(a), b)
 		
 		switch = {
-			lg.predicates.Predicate: lambda F: self.__predicate_to_var(F, mappings),
+			lg.predicates.Predicate: lambda F: self._predicate_to_var(F, mappings),
 			lg.base.Atomic: lambda F: F.symbol,
 			# lg.base.Variable: variable_case,
 			# lg.base.TrueFormula: lambda F: Verum(),
 			# lg.base.FalseFormula: lambda F: Falsum(),
-			lg.base.Not: lambda F: Neg(self.__convert_formula(F._arg, mappings)),
+			lg.base.Not: lambda F: Neg(self._convert_formula(F._arg, mappings)),
 			lg.base.And: lambda F: binary_case(F, Conj),
 			lg.base.Or: lambda F: binary_case(F, Disj),
 			lg.base.Imply: imply_case,
 			# Return a list of all the possible formulae as outcomes.
-			lg.base.OneOf: lambda F: [self.__convert_formula(sub, mappings) for sub in F._operands],
+			lg.base.OneOf: lambda F: [self._convert_formula(sub, mappings) for sub in F._operands],
 		}
 		
 		if not isinstance(F, tuple(switch.keys())):
@@ -445,7 +445,7 @@ class TranslatorManual(Translator):
 		
 		return switch[type(F)](F)
 
-	def __parameter_possibilities(self, action):
+	def _parameter_possibilities(self, action):
 		'''
 		Yields all possible combinations of parameters to the action.
 		Does not generate those which are unable to satisfy the precondition based on unchanging predicate in the precondition.
@@ -453,21 +453,21 @@ class TranslatorManual(Translator):
 		'''
 		# positive and negative literals in the precondition which are unchanging.
 		# We assume preconditions do not contain disjunctions.
-		requirements = [p for p in TranslatorManual.__get_positive_predicates(action.precondition) if p.name in self.unchanging_predicates]
-		prohibitions = [p for p in TranslatorManual.__get_negative_predicates(action.precondition) if p.name in self.unchanging_predicates]
+		requirements = [p for p in TranslatorManual._get_positive_predicates(action.precondition) if p.name in self.unchanging_predicates]
+		prohibitions = [p for p in TranslatorManual._get_negative_predicates(action.precondition) if p.name in self.unchanging_predicates]
 		
 		requirement_satisfiers = []
 		for predicate in requirements:
 			# the rezipping is so we have ( (x,o1),(y,o2) ) where x and y are the parameters
 			# and predicate(o1, o2) is initially true.
-			pred_choices = [tuple(zip(predicate.terms, tup)) for tup in self.__get_initial_values(predicate)]
+			pred_choices = [tuple(zip(predicate.terms, tup)) for tup in self._get_initial_values(predicate)]
 			requirement_satisfiers.append(pred_choices)
 			
 		prohibited_choices = []
 		for predicate in prohibitions:
 			# the rezipping is so we have ( (x,o1),(y,o2) ) where x and y are the parameters
 			# and predicate(o1, o2) is initially true.
-			pred_choices = [set(zip(predicate.terms, tup)) for tup in self.__get_initial_values(predicate)]
+			pred_choices = [set(zip(predicate.terms, tup)) for tup in self._get_initial_values(predicate)]
 			prohibited_choices += pred_choices
 		
 		# other parameters which may take any value (of the specified type)
@@ -481,7 +481,7 @@ class TranslatorManual(Translator):
 		for param in free_parameters:
 			p_choices = []
 			for p_type in list(param.type_tags):
-				p_choices += [(param, obj) for obj in self.__objects_of_type(p_type)]
+				p_choices += [(param, obj) for obj in self._objects_of_type(p_type)]
 			free_choices.append(p_choices)
 		
 		for choice_of_frees in itertools.product(*free_choices):
@@ -512,7 +512,7 @@ class TranslatorManual(Translator):
 		
 		return
 		
-	def __create_action(self, action, mapping: Dict[str, str]):
+	def _create_action(self, action, mapping: Dict[str, str]):
 		"""
 		Instantiates an action with the given variable
 		"""
@@ -522,14 +522,14 @@ class TranslatorManual(Translator):
 		new_name = action.name + var_choice_string
 		new_effect_name = action.name + var_choice_string
 		
-		new_prec = self.__convert_formula(action.precondition, mapping)
+		new_prec = self._convert_formula(action.precondition, mapping)
 		new_prec = Formula.simplify_constants(new_prec)
 		# this shouldn't be possible since we never give this functions mappings
 		# which are unsatisfiable
 		
 		assert not isinstance(new_prec, Falsum)
 		
-		effect_formulas = self.__convert_formula(action.effect, mapping)
+		effect_formulas = self._convert_formula(action.effect, mapping)
 		if not isinstance(effect_formulas, list):
 			effect_formulas = [effect_formulas]
 			
@@ -539,28 +539,28 @@ class TranslatorManual(Translator):
 		
 		return GroundedAction(new_name, new_prec, new_effects)
 	
-	def __instantiate_action(self, action):
+	def _instantiate_action(self, action):
 		new_actions = []
 		params = set(p.name for p in action.parameters)
 		
-		for mapping in self.__parameter_possibilities(action):
+		for mapping in self._parameter_possibilities(action):
 			if params > set(mapping.keys()):
 				continue
-			new_actions.append(self.__create_action(action, mapping))
+			new_actions.append(self._create_action(action, mapping))
 		
 		return new_actions
 	
 	@staticmethod
-	def __get_predicates_in_formula(formula: lg.base.Formula) -> Set:
-		return TranslatorManual.__get_positive_predicates(formula) | TranslatorManual.__get_negative_predicates(formula)
+	def _get_predicates_in_formula(formula: lg.base.Formula) -> Set:
+		return TranslatorManual._get_positive_predicates(formula) | TranslatorManual._get_negative_predicates(formula)
 	
 	@staticmethod
-	def __get_positive_predicates(formula: lg.base.Formula) -> Set:
+	def _get_positive_predicates(formula: lg.base.Formula) -> Set:
 		'''
 		Returns all positive predicates in a formula (Pred(...)).
 		'''
 		if isinstance(formula, lg.base.BinaryOp):
-			recurses = [TranslatorManual.__get_positive_predicates(sub) for sub in formula._operands]
+			recurses = [TranslatorManual._get_positive_predicates(sub) for sub in formula._operands]
 			if not recurses:
 				return set()
 			return set.union(*recurses)
@@ -569,12 +569,12 @@ class TranslatorManual(Translator):
 		return set()
 	
 	@staticmethod
-	def __get_negative_predicates(formula: lg.base.Formula) -> Set:
+	def _get_negative_predicates(formula: lg.base.Formula) -> Set:
 		'''
 		Returns all negative predicates in a formula (Not(Pred(...))).
 		'''
 		if isinstance(formula, lg.base.BinaryOp):
-			recurses = [TranslatorManual.__get_negative_predicates(sub) for sub in formula._operands]
+			recurses = [TranslatorManual._get_negative_predicates(sub) for sub in formula._operands]
 			if not recurses:
 				return set()
 			return set.union(*recurses)

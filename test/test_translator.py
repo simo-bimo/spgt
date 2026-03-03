@@ -1,6 +1,6 @@
 import unittest
 import os
-from spgt.translator import ManualTranslator
+from spgt.translator import TranslatorManual
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -9,7 +9,7 @@ TEST_DATA = os.path.join(THIS_DIR, os.pardir, "benchmarks", "domains")
 def dict_to_set(d, key_lambda = lambda x: x, value_lambda = lambda x: x):
 	return set((key_lambda(k),value_lambda(v)) for k,v in d.items())
 
-class TestManualTranslatorComponenets(unittest.TestCase):
+class TestTranslatorManualComponents(unittest.TestCase):
 	def setUp(self):
 		self.domain_directory = os.path.abspath(
 			os.path.join(TEST_DATA, "acrobatics")
@@ -25,7 +25,7 @@ class TestManualTranslatorComponenets(unittest.TestCase):
 			)
 	
 	def test_a_unchanging_vars(self):
-		t = ManualTranslator(self.domain_path, self.instance_paths[0], process_immediate=False)
+		t = TranslatorManual(self.domain_path, self.instance_paths[0], process_immediate=False)
 		expected_unchanging = {"next-fwd", "next-bwd", "ladder-at"}
 		found_unchanging = t.unchanging_predicates
 		self.assertLessEqual(expected_unchanging, found_unchanging)
@@ -33,7 +33,7 @@ class TestManualTranslatorComponenets(unittest.TestCase):
 		pass
 		
 	def test_b_action_parameter_possibilities(self):
-		t = ManualTranslator(self.domain_path, self.instance_paths[0], process_immediate=False)
+		t = TranslatorManual(self.domain_path, self.instance_paths[0], process_immediate=False)
 		walk_on_beam = [a for a in t.actions if a.name == 'walk-on-beam'].pop()
 		
 		expected_possibilities = [
@@ -41,7 +41,7 @@ class TestManualTranslatorComponenets(unittest.TestCase):
 		]
 		
 		actual_possibilities = [
-			dict_to_set(poss, value_lambda=lambda x: x.name) for poss in t.__parameter_possibilities(walk_on_beam)
+			dict_to_set(poss, value_lambda=lambda x: x) for poss in t._parameter_possibilities(walk_on_beam)
 		]
 		for e in expected_possibilities:
 			self.assertIn(e, actual_possibilities)

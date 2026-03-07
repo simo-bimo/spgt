@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from spgt.base.logic import Formula, Conj, Assign, Neg, Atom, Variable, Value
+from spgt.base.logic import Formula, Conj, Assign, Neg, Atom, Variable, Value, Falsum, Verum
 from spgt.asp.symbols import *
 
 class GroundedEffect:
@@ -8,6 +8,17 @@ class GroundedEffect:
 		self.name = name
 		self.add = add
 		self.delete = delete
+	
+	def regress(self, assign: Assign) -> Assign | Falsum | Verum:
+		'''
+		Regresses `assign` through this effect.
+		'''
+		var, val = tuple(assign._sub)
+		if (var, val) in self.add:
+			return Verum()
+		if (var, val) in self.delete:
+			return Falsum()
+		return assign
 	
 	def as_ASP(self):
 		"""

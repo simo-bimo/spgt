@@ -1,9 +1,27 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 from spgt.asp.symbols import *
+
+import clingo
+
+def split_top_brackets(s: str, delim: str = ',', brackets: Tuple[str, str] = ('(', ')')) -> List[str]:
+	left_brackets, right_brackets = brackets
+	items = []
+	depth = 0
+	last_index = 0
+	for i,c in enumerate(s):
+		if c in left_brackets:
+			depth += 1
+		elif c in right_brackets:
+			depth -= 1
+		elif c in delim and depth == 0:
+			items.append(s[last_index:i])
+			last_index = i+1
+	items.append(s[last_index:])
+	return items
 
 class Formula(ABC):
 	symbol: str
@@ -31,6 +49,37 @@ class Formula(ABC):
 	
 	def is_ppltl(self):
 		return False
+	
+	@staticmethod
+	def from_asp(asp_string: clingo.Symbol|str) -> Formula | str:
+		immediate_subclasses = Formula.__subclasses__()
+		leaf_subclasses = []
+		for sc in immediate_subclasses:
+			if len(sc.__subclasses__()) > 0:
+				immediate_subclasses.extend(sc.__subclasses__())
+			else:
+				if not sc in leaf_subclasses:
+					leaf_subclasses.append(sc)
+		
+		mappings = [
+			(sc.ASP_SYMBOL, sc) for sc in leaf_subclasses
+		]
+		
+		if isinstance(asp_string, clingo.Symbol):
+			asp_string = str(asp_string)
+		asp = asp_string.strip('\\"')
+		
+		for s,f in mappings:
+			if asp.startswith(s):
+				print("="*20)
+				print("String:", asp)
+				print("Matches:", s)
+				print("Creating:", f)
+				sub_asp = asp.removeprefix(s).removeprefix('(').removesuffix(')')
+				subs = [x.strip().strip('\\"') for x in split_top_brackets(sub_asp)]
+				print("Subformulae are: ", subs)
+				return f(*[Formula.from_asp(x) for x in subs])
+		return asp
 	
 	@staticmethod
 	def __check_binary(s: str, binary_symbols = None) -> int | None:
@@ -289,6 +338,7 @@ class Atom(Formula):
 	# in this case, symbol 
 	# is the name of the atom.
 	symbol: str
+	ASP_SYMBOL = 'atom'
 	
 	def __init__(self, name:str = "NO SYMBOL"):
 		self.symbol = name
@@ -297,6 +347,8 @@ class Atom(Formula):
 		return make_safe(self.symbol)
 
 class Variable(Formula):
+	ASP_SYMBOL = ASP_VARIABLE_VALUE_SYMBOL
+	
 	def __init__(self, name: str, domain: List[str], axiom_layer: int = -1):
 		self.symbol = name
 		self.domain = domain
@@ -313,7 +365,7 @@ class Variable(Formula):
 	def as_ASP(self):
 		ls = []
 		for val in self.domain:
-			ls.append(ASP_VARIABLE_VALUE_SYMBOL + f"({make_safe(self.symbol)}, {make_safe(val)}).")
+			ls.append(self.ASP_SYMBOL + f"({make_safe(self.symbol)}, {make_safe(val)}).")
 		return ls
 	
 	def from_atom(atom: Atom):
@@ -335,3 +387,28 @@ class Verum(Formula):
 class Falsum(Formula):
 	symbol = '\u22A5'
 	ASP_SYMBOL = "falsum"
+
+class Axiom(Formula):
+	'''
+	An abstract representation of an axiom.
+	'''
+	symbol = "\u2190" # left arrow.
+	ASP_SYMBOL = "axiom_rule"
+	
+	def __init__(self, head: Variable, condition: Formula):
+		if not head.is_binary():
+			raise ValueError("Cannot have an axiom set a non-binary value.")
+		self._head = head
+		self._condition = condition
+	
+	def __str__(self):
+		return f"{str(self._head)}{self.symbol}{str(self._condition)}"
+	
+	def as_ASP(self):
+		return f"{self.ASP_SYMBOL}({self._head.as_ASP()}, {self._condition.as_ASP()})"
+
+if __name__ == '__main__':
+	# print(split_top_brackets("baguette, abc(one, two, three), def(four, five, six(seven, eight))"))
+	
+	print(Formula.from_asp('conj(has_value("baguette", "fresh"), has_value("tomato", "fresh"))'))
+	

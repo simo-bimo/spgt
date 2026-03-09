@@ -2,7 +2,7 @@ import os
 
 from typing import List, Tuple, Callable, Dict
 
-from spgt.base.logic import Variable, Atom, Assign, Conj, Disj, Formula
+from spgt.base.logic import SASVariable, SASValue, Atom, Assign, Conj, Disj, Formula
 from spgt.base.domain import GroundedAction, GroundedEffect
 
 def read_between_indices(sas_lines: List[str], start: str, end: str) -> List[List[str]]:
@@ -39,18 +39,17 @@ def read_of_type(sas_lines: List[str], name: str, reader: Callable[[List[str]], 
 	sas_objects = read_between_indices(sas_lines, start, end)
 	return [reader(lines) for lines in sas_objects]
 
-def formula_from_tuples(var_mapping: Dict[int, Variable], tuples: List[Tuple[int, int]]) -> Formula:
+def formula_from_tuples(var_mapping: Dict[int, SASVariable], tuples: List[Tuple[int, int]]) -> Formula:
 	'''
 	Converts a list of assignments to a formula.
 	'''
 	
-	# TODO: Converts an int value to an `Value`, but should really just be an int.
-	assigns = [Assign(var_mapping[v], Atom(str(x))) for v,x in tuples]
+	assigns = [Assign(var_mapping[v], SASValue(x)) for v,x in tuples]
 	
 	if len(assigns) == 1:
 		return assigns.pop()
 	
-	# TODO: Currently returns a nested et of binary operators.
+	# TODO: Currently returns a nested set of binary operators.
 	# Should become a k-ary operator once regression is implemented.	
 	f = Conj(assigns.pop(), assigns.pop())
 	while len(assigns) > 1:
@@ -58,17 +57,16 @@ def formula_from_tuples(var_mapping: Dict[int, Variable], tuples: List[Tuple[int
 	
 	return f
 
-def flattened_formula_from_tuples(var_mapping: Dict[int, Variable],
-								  derived_var_mapping: Dict[Variable, Formula], tuples: List[Tuple[int, int]]) -> Formula:
+def flattened_formula_from_tuples(var_mapping: Dict[int, SASVariable],
+								  derived_var_mapping: Dict[SASVariable, Formula], tuples: List[Tuple[int, int]]) -> Formula:
 	'''
 	Converts a list of assignments to a formula, flattening derived variables into their corresponding formulae.
 	'''
-	# TODO: Converts an int value to an `Value`, but should really just be an int.
 	components = []
 	
 	for v,x in tuples:
 		var = var_mapping[v]
-		f = Assign(var, Atom(str(x)))
+		f = Assign(var, SASValue(x))
 		if var in derived_var_mapping:
 			f = derived_var_mapping[var]
 		components.append(f)
@@ -84,18 +82,18 @@ def flattened_formula_from_tuples(var_mapping: Dict[int, Variable],
 	
 	return f
 	
-def read_variable(var_lines: List[str]) -> Variable:
+def read_variable(var_lines: List[str]) -> SASVariable:
 	'''
 	Converts an appropriate list of SAS lines into a variable.
 	'''
-	name = var_lines[0]
+	id = int(var_lines[0].strip('var'))
 	# ignored for now
 	axiom_layer = int(var_lines[1])
 	num_values = int(var_lines[2])
-	values = list(str(x) for x in range(num_values))
-	return Variable(name, values, axiom_layer)
+	# values = list(str(x) for x in range(num_values))
+	return SASVariable(id, num_values, axiom_layer)
 
-def read_initial_state(var_mapping: Dict[int, Variable], state_lines: List[str]) -> List[Tuple[Variable, Atom]]:
+def read_initial_state(var_mapping: Dict[int, SASVariable], state_lines: List[str]) -> List[Tuple[SASVariable, Atom]]:
 	'''
 	Reads in the initial state and returns it as a list of tuples.
 	'''
@@ -103,7 +101,7 @@ def read_initial_state(var_mapping: Dict[int, Variable], state_lines: List[str])
 
 def read_goal(goal_lines: List[str]) -> List[Tuple[int, int]]:
 	'''
-	Reads in the goal and returns it as a list of Variable Value pairs.
+	Reads in the goal and returns it as a list of SASVariable Value pairs.
 	'''
 	num_pairings = int(goal_lines[0])
 	tuples = [s.split(' ') for s in goal_lines[1:]]
@@ -158,7 +156,7 @@ def read_det_action(action_lines: List[str], det_dup_str: str = '_detdup_') -> T
 	
 	return name, effect_index, prevail_conditions, postvail_conditions
 
-def effect_from_conditions(var_mapping: Dict[int, Variable], name: str, effect_index: int,
+def effect_from_conditions(var_mapping: Dict[int, SASVariable], name: str, effect_index: int,
 						   postvail_conditions: List[Tuple[int, int]]) -> GroundedEffect:
 	'''
 	Takes an interpreted operator and converts it to an effect, referring to the appropriate variables given in `var_mapping`
@@ -168,7 +166,7 @@ def effect_from_conditions(var_mapping: Dict[int, Variable], name: str, effect_i
 		eff_name = name + '_effect'
 	return GroundedEffect.from_formula(eff_name, formula_from_tuples(var_mapping, postvail_conditions))
 
-def read_actions(sas_lines: List[str], var_mapping: Dict[int, Variable]) -> List[GroundedAction]:
+def read_actions(sas_lines: List[str], var_mapping: Dict[int, SASVariable]) -> List[GroundedAction]:
 	'''
 	Reads all actions, appropriately organising them into grounded actions. Handles non-determinism.
 	'''
@@ -221,7 +219,7 @@ def read_axiom_rule(rule_lines: str) -> Tuple[List[Tuple[int, int]], Tuple[int, 
 	
 	return condition_tuples, (int(var), int(new_val))
 
-def expand_axioms(var_mapping: Dict[int, Variable], axioms: List[Tuple[List[Tuple[int, int]], Tuple[int, int]]]) -> Dict[Variable, Formula]:
+def expand_axioms(var_mapping: Dict[int, SASVariable], axioms: List[Tuple[List[Tuple[int, int]], Tuple[int, int]]]) -> Dict[SASVariable, Formula]:
 	'''
 	Converts the set of axioms into a dictionary mapping derived variables to flattened formulae.
 	'''
@@ -242,16 +240,15 @@ def expand_axioms(var_mapping: Dict[int, Variable], axioms: List[Tuple[List[Tupl
 	
 	return mapping
 
-def load_sas(sas_lines: List[str]) -> Tuple[List[Variable],
-											List[Tuple[Variable, Atom]],
+def load_sas(sas_lines: List[str]) -> Tuple[List[SASVariable],
+											List[Tuple[SASVariable, SASValue]],
 											Formula,
 											List[GroundedAction],
-											List[Tuple[Formula, Tuple[Variable, Atom]]]]:
+											List[Tuple[Formula, Tuple[SASVariable, SASValue]]]]:
 	
 	variables = read_of_type(sas_lines, 'variable', read_variable)
-	get_index = lambda var: int(var.symbol[3:])
 	
-	var_mapping = dict((get_index(v),v) for v in variables)
+	var_mapping = dict((v.id, v) for v in variables)
 	
 	initial = read_of_type(sas_lines, 'state', lambda x: read_initial_state(var_mapping, x)).pop()
 	
@@ -266,4 +263,4 @@ def load_sas(sas_lines: List[str]) -> Tuple[List[Variable],
 	
 	goal = flattened_formula_from_tuples(var_mapping, axiom_rules, unconverted_goal)
 	
-	return variables, initial, goal, actions, axiom_rules
+	return variables, initial, goal, actions, axiom_rules, var_mapping

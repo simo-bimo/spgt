@@ -17,6 +17,7 @@ from spgt.base.domain import GroundedAction, GroundedEffect
 from spgt.base.logic import Formula, Verum, Falsum, Atom, Neg, Conj, Disj, Assign, Variable, Value
 from spgt.sasloader import load_sas
 from spgt.names import SAS_TRANSLATOR_PATH
+from spgt.regressor import Regressor
 
 # Read in a domain file and a problem file
 # Ensure it's in the normalised form (oneof)
@@ -41,6 +42,9 @@ class Translator():
 				return True
 		return False
 	
+	def effects_map(self):
+		return dict((e.name, e) for e in self.grounded_effects)
+	
 	def overwrite_goal(self, new_goal: Formula):
 		'''
 		Overwrites the goal read from ASP with the given formula.
@@ -64,7 +68,7 @@ class Translator():
 		yield "\n"
 		
 		for var, val in self.initial_values:
-			yield ASP_INIT_SYMBOL + f"({make_safe(var.symbol)}, {val.as_ASP()})." + "\n"
+			yield ASP_INIT_SYMBOL + f"({str(var)}, {str(val)})." + "\n"
 		
 		yield "\n"
 		
@@ -94,7 +98,7 @@ class TranslatorSAS(Translator):
 		sas_output = self._translate_to_sas()
 		
 		# Load SAS problem
-		self.variables, self.initial_values, self.converted_goal, self.grounded_actions, self.axiom_rules = load_sas(sas_output)
+		self.variables, self.initial_values, self.converted_goal, self.grounded_actions, self.axiom_rules, self.var_mapping = load_sas(sas_output)
 		self.grounded_effects = []
 		
 		if self.converted_goal in self.axiom_rules:
@@ -102,10 +106,13 @@ class TranslatorSAS(Translator):
 		
 		for a in self.grounded_actions:
 			if a.precondition in self.axiom_rules:
-				a.precondition = self.axiom_rules[self.converted_goal]
+				a.precondition = self.axiom_rules[a.precondition]
 			self.grounded_effects += a.effects 
 		
 		pass
+	
+	def get_regressor(self):
+		return Regressor(self.var_mapping, [], self.effects_map)
 	
 	def _translate_to_sas(self) -> List[str]:
 		pyexec = shutil.which("python")

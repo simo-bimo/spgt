@@ -6,6 +6,7 @@ from typing import List
 from spgt.translator import Translator, TranslatorManual, TranslatorSAS
 from spgt.solver import solve
 from spgt.base.logic import Formula
+from spgt.regressor import Regressor
 
 from spgt import names
 
@@ -133,7 +134,9 @@ def main():
 	
 	translator.save_ASP(instance_loc)
 	
-	output = solve(args, instance_loc, start_time)
+	regressor: Regressor = translator.get_regressor()
+	
+	output = solve(args, instance_loc, regressor, start_time)
 	with open(output_loc, "w+") as f:
 		f.writelines(s+'\n' for s in output)
 	

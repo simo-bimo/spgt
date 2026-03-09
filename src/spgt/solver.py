@@ -14,6 +14,8 @@ from spgt.names import ASP_PPLTL_PLANNER_PATH, \
 		ASP_PPLTL_REGRESSOR_PATH, ASP_CLINGRAPH_PATH, \
 		ASP_STRONG_PATH
 
+from spgt.regressor import Regressor
+
 def filter_atoms(atoms: List[AnyStr], filter: List[AnyStr] = [], as_facts: bool = False) -> List[AnyStr]:
 	'''
 	Takes a list of atoms and returns any whose name matches one of those in filter.
@@ -103,7 +105,7 @@ def atoms_from_model(model: Model):
 	'''
 	return [str(a) for a in model.symbols(atoms=True)]
 	
-def _create_and_solve(files: List[AnyStr], k: int = 1, extra_args: List[AnyStr] = []) -> List[AnyStr] | bool:
+def _create_and_solve(files: List[AnyStr], k: int = 1, extra_args: List[AnyStr] = [], regressor: Regressor = None) -> List[AnyStr] | bool:
 	'''
 	Uses the clingo python API to run clingo on the input files with the `numNodes` parameter set to k.
 	returns a list of strings representing a stable model, or False if no such model is found.
@@ -113,7 +115,7 @@ def _create_and_solve(files: List[AnyStr], k: int = 1, extra_args: List[AnyStr] 
 	ctl = Control(['-c', f'numNodes={k-1}'] + extra_args)
 	for f in files:
 		ctl.load(f)
-	ctl.ground()
+	ctl.ground(context=regressor)
 	# We only want a single stable model.
 	ctl.configuration.solve.models = 1
 		
@@ -125,7 +127,7 @@ def _create_and_solve(files: List[AnyStr], k: int = 1, extra_args: List[AnyStr] 
 	print("There was an error during solving.")
 	return False
 
-def solve_iteratively(args, files):
+def solve_iteratively(args, files, regressor: Regressor):
 	output = False
 	clingo_args = args.clingo_args
 	num_nodes = args.start_size-1
@@ -133,7 +135,7 @@ def solve_iteratively(args, files):
 		num_nodes += 1
 		print(f"Attempting to solve with {num_nodes} nodes.")
 		
-		output = _create_and_solve(files, num_nodes, extra_args=clingo_args)
+		output = _create_and_solve(files, num_nodes, extra_args=clingo_args, regressor=regressor)
 	
 	print(f"Solved with {num_nodes} nodes.")
 	return output
@@ -150,7 +152,7 @@ def select_files(args) -> List[str]:
 		files += [ASP_STRONG_PATH]
 	return files
 	
-def solve(args, instance_file: AnyStr, start_time: float):
+def solve(args, instance_file: AnyStr, regressor: Regressor, start_time: float):
 	
 	files = select_files(args)
 	files += [instance_file]
@@ -161,7 +163,7 @@ def solve(args, instance_file: AnyStr, start_time: float):
 	if args.subprocess:
 		output = solve_iteratively_subprocess(args, files, start_time)
 	else:
-		output = solve_iteratively(args, files)
+		output = solve_iteratively(args, files, regressor)
 	
 	if args.graph and len(output):
 		generate_graph(output, args.temp_dir)

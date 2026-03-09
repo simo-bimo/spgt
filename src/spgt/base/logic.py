@@ -51,7 +51,7 @@ class Formula(ABC):
 		return False
 	
 	@staticmethod
-	def from_asp(asp_string: clingo.Symbol|str) -> Formula | str:
+	def _get_subclass_asp_mappings():
 		immediate_subclasses = Formula.__subclasses__()
 		leaf_subclasses = []
 		for sc in immediate_subclasses:
@@ -65,21 +65,32 @@ class Formula(ABC):
 			(sc.ASP_SYMBOL, sc) for sc in leaf_subclasses
 		]
 		
+		return mappings
+		
+	
+	@staticmethod
+	def from_asp(asp_string: clingo.Symbol|str, var_mapping: Dict[int, SASVariable] = {}) -> Formula | str:
+		mappings = Formula._get_subclass_asp_mappings()
+		
 		if isinstance(asp_string, clingo.Symbol):
 			asp_string = str(asp_string)
 		asp = asp_string.strip('\\"')
 		
+		if asp.startswith(Assign.ASP_SYMBOL):
+			# special case for assign to handle variables and values correctly.
+			sub_asp = asp.removeprefix(Assign.ASP_SYMBOL).removeprefix('(').removesuffix(')')
+			var, val = tuple(int(x.strip().strip('"')) for x in sub_asp.split(',')[:2])
+			return Assign(var_mapping[var], SASValue(val))
+		
 		for s,f in mappings:
+			if f == Assign:
+				continue	
 			if asp.startswith(s):
-				print("="*20)
-				print("String:", asp)
-				print("Matches:", s)
-				print("Creating:", f)
 				sub_asp = asp.removeprefix(s).removeprefix('(').removesuffix(')')
 				subs = [x.strip().strip('\\"') for x in split_top_brackets(sub_asp)]
-				print("Subformulae are: ", subs)
-				return f(*[Formula.from_asp(x) for x in subs])
-		return asp
+				return f(*[Formula.from_asp(x, var_mapping=var_mapping) for x in subs])
+		
+		raise ValueError('Could not determine Symbol Type')
 	
 	@staticmethod
 	def __check_binary(s: str, binary_symbols = None) -> int | None:
@@ -319,7 +330,7 @@ class Assign(BinaryOp):
 	ASP_SYMBOL = "has_value"
 	
 	def as_ASP(self):
-		child_symbols = [make_safe(x.symbol) for x in self._sub]
+		child_symbols = [str(x) for x in self._sub]
 		children_str = ','.join(child_symbols)
 		return f"{self.ASP_SYMBOL}({children_str})"
 
@@ -345,6 +356,54 @@ class Atom(Formula):
 	
 	def as_ASP(self):
 		return make_safe(self.symbol)
+
+class SASVariable(Formula):
+	ASP_SYMBOL = ASP_VARIABLE_VALUE_SYMBOL
+	
+	def __init__(self, id: int, domain_size: int, axiom_layer: int = -1):
+		self.id = id
+		self.domain_size = domain_size
+		self.axiom_layer = axiom_layer
+		self.domain = list(range(domain_size))
+		self.symbol = str(id)
+	
+	def __eq__(self, other):
+		return isinstance(other, SASVariable) \
+			and other.id == self.id \
+			and other.domain_size == self.domain_size
+	
+	def __hash__(self):
+		return hash(self.id)
+	
+	def __str__(self):
+		return str(self.id)
+	
+	def as_ASP(self):
+		ls = []
+		for val in range(self.domain_size):
+			ls.append(self.ASP_SYMBOL + f"({self.id}, {val}).")
+		return ls
+	
+	def is_binary(self) -> bool:
+		return self.domain_size == 2
+
+class SASValue(Formula):
+	ASP_SYMBOL = "UNDEFINED"
+	
+	def __init__(self, val: int):
+		self.val = val
+		self.symbol = str(val)
+	
+	def __eq__(self, other):
+		return isinstance(other, SASValue)\
+				and other.val == self.val
+	
+	def __hash__(self):
+		return hash(self.val)
+	
+	def as_ASP(self):
+		return self.symbol
+	
 
 class Variable(Formula):
 	ASP_SYMBOL = ASP_VARIABLE_VALUE_SYMBOL

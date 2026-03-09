@@ -1,19 +1,27 @@
 from typing import List, Tuple
 
-from spgt.base.logic import Formula, Conj, Assign, Neg, Atom, Variable, Value, Falsum, Verum
+from spgt.base.logic import Formula, Conj, Assign, Neg, Atom, SASVariable, SASValue, Falsum, Verum
 from spgt.asp.symbols import *
 
 class GroundedEffect:
-	def __init__(self, name, add: List[Tuple[Variable, Value]], delete: List[Tuple[Variable, Value]]):
+	def __init__(self, name, add: List[Tuple[SASVariable, SASValue]], delete: List[Tuple[SASVariable, SASValue]]):
 		self.name = name
 		self.add = add
 		self.delete = delete
 	
-	def regress(self, assign: Assign) -> Assign | Falsum | Verum:
+	def regress(self, assign: Assign|Tuple) -> Assign | Falsum | Verum:
 		'''
 		Regresses `assign` through this effect.
 		'''
-		var, val = tuple(assign._sub)
+		if isinstance(assign, Tuple):
+			var, val = assign
+		else:
+			var, val = tuple(assign._sub)
+			# var = var.symbol
+			# val = val.symbol
+		
+			
+		
 		if (var, val) in self.add:
 			return Verum()
 		if (var, val) in self.delete:
@@ -26,21 +34,21 @@ class GroundedEffect:
 		"""
 		ls = []
 		for var,val in self.add:
-			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {val.as_ASP()})."
+			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(val)})."
 			ls.append(s)
 			# ensure that for binary variables the other value is added (we flip it from true to false or vice versa.)
 			if var.is_binary():
-				opposite = Value(ASP_FALSE_VALUE) if val.symbol == ASP_TRUE_VALUE else Value(ASP_TRUE_VALUE)
-				alternate_s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {opposite.as_ASP()})."
+				opposite = 1-val.val
+				alternate_s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(opposite)})."
 				ls.append(alternate_s)
 		for var,val in self.delete:
-			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {val.as_ASP()})."
+			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(val)})."
 			ls.append(s)
 			if var.is_binary():
-				opposite = Value(ASP_FALSE_VALUE) if val.symbol == ASP_TRUE_VALUE else Value(ASP_TRUE_VALUE)
-				alternate_s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {make_safe(var.symbol)}, {opposite.as_ASP()})."
+				opposite = 1-val.val
+				alternate_s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(opposite)})."
 				ls.append(alternate_s)
-		return ls
+		return list(set(ls))
 		
 	@staticmethod
 	def from_formula(name, f: Formula):
@@ -49,7 +57,7 @@ class GroundedEffect:
 		Disjunctions and other Binary Ops will be ignored.
 		'''
 		# recurse down finding all literals of the given type. Nothing
-		def get_lits(form: Formula, l_type = (Assign,Atom)) -> List:
+		def get_lits(form: Formula, l_type = (Assign,SASVariable,SASValue)) -> List:
 			if isinstance(form, Conj):
 				recursions = [get_lits(x, l_type) for x in form._sub]
 				return [x for xs in recursions for x in xs]
@@ -63,8 +71,8 @@ class GroundedEffect:
 		negatives = [x._arg for x in get_lits(f, Neg)]
 		
 		# Assigns
-		adds = [(f._sub[0], f._sub[1]) for f in positives if isinstance(f, Assign)]
-		deletes = [(f._sub[0], f._sub[1]) for f in negatives if isinstance(f, Assign)]
+		adds = [tuple(f._sub) for f in positives if isinstance(f, Assign)]
+		deletes = [tuple(f._sub) for f in negatives if isinstance(f, Assign)]
 		
 		return GroundedEffect(name, adds, deletes)
 	

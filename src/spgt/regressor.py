@@ -76,6 +76,7 @@ class Regressor:
 		'''
 		# Convert ASP strings to python objects through lookup.
 		f = Formula.from_asp(formula, self.var_mapping)
-		e = self.effects[effect.name]
+		effect_name = str(effect).strip('"')
+		e = self.effects[effect_name]
 		
-		return clingo.Function(self.regress(f, e).as_ASP())
+		return clingo.symbol.parse_term(self.regress(f, e).as_ASP())

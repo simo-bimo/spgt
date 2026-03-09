@@ -109,6 +109,10 @@ class TranslatorSAS(Translator):
 				a.precondition = self.axiom_rules[a.precondition]
 			self.grounded_effects += a.effects 
 		
+		self.effects_map = {}
+		for e in self.grounded_effects:
+			self.effects_map[e.name] = e
+		
 		pass
 	
 	def get_regressor(self):

@@ -21,7 +21,11 @@ class GroundedEffect:
 			# val = val.symbol
 		
 			
-		
+		for other_val in range(var.domain_size):
+			if other_val == val.val:
+				continue
+			if (var, SASValue(other_val)) in self.add:
+				return Falsum()
 		if (var, val) in self.add:
 			return Verum()
 		if (var, val) in self.delete:
@@ -33,21 +37,22 @@ class GroundedEffect:
 		Returns a list of ASP rules for the add and delete rules of the effect.
 		"""
 		ls = []
+		return ls
+		# Since regression has moved to python, the add and delete rules are not necessary in the planner.
 		for var,val in self.add:
 			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(val)})."
 			ls.append(s)
-			# ensure that for binary variables the other value is added (we flip it from true to false or vice versa.)
-			if var.is_binary():
-				opposite = 1-val.val
-				alternate_s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(opposite)})."
-				ls.append(alternate_s)
+			# Ensure that all other values are deleted.
+			for other_val in range(var.domain_size):
+				if other_val == val.val:
+					continue
+				ls.append(ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(other_val)}).")
 		for var,val in self.delete:
 			s = ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(val)})."
 			ls.append(s)
-			if var.is_binary():
-				opposite = 1-val.val
-				alternate_s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(opposite)})."
-				ls.append(alternate_s)
+			if var.domain_size == 2:
+				other_val = 1-val.val
+				ls.append(ASP_EFFECT_DELETE_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(other_val)}).")
 		return list(set(ls))
 		
 	@staticmethod

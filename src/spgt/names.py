@@ -8,6 +8,8 @@ ASP_STRONG_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "strong_rules.lp"))
 ASP_PLANNER_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "regression_variable_planner.lp"))
 ASP_PPLTL_PLANNER_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "reg_var_ppltl_planner.lp"))
 
+ASP_PLANNER_PYREG_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "pyreg_planner.lp"))
+
 ASP_REGRESSOR_PATH  = os.path.abspath(os.path.join(ASP_CODE_DIR, "regressor_variable.lp"))
 ASP_PPLTL_REGRESSOR_PATH  = os.path.abspath(os.path.join(ASP_CODE_DIR, "regressor_var_ppltl.lp"))
 

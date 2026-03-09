@@ -52,7 +52,7 @@ def formula_from_tuples(var_mapping: Dict[int, SASVariable], tuples: List[Tuple[
 	# TODO: Currently returns a nested set of binary operators.
 	# Should become a k-ary operator once regression is implemented.	
 	f = Conj(assigns.pop(), assigns.pop())
-	while len(assigns) > 1:
+	while len(assigns) > 0:
 		f = Conj(f, assigns.pop())
 	
 	return f
@@ -77,7 +77,7 @@ def flattened_formula_from_tuples(var_mapping: Dict[int, SASVariable],
 	# TODO: Currently returns a nested et of binary operators.
 	# Should become a k-ary operator once regression is implemented.	
 	f = Conj(components.pop(), components.pop())
-	while len(components) > 1:
+	while len(components) > 0:
 		f = Conj(f, components.pop())
 	
 	return f

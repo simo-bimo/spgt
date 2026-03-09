@@ -144,8 +144,8 @@ def solve_iteratively(args, files, regressor: Regressor):
 def select_files(args) -> List[str]:
 	# files = [ASP_PLANNER_PATH, ASP_REGRESSOR_PATH]
 	files = [ASP_PLANNER_PYREG_PATH]
-	if args.ppltl:
-		files = [ASP_PPLTL_PLANNER_PATH, ASP_PPLTL_REGRESSOR_PATH]
+	# if args.ppltl:
+	# 	files = [ASP_PPLTL_PLANNER_PATH, ASP_PPLTL_REGRESSOR_PATH]
 	
 	if args.graph:
 		files += [ASP_CLINGRAPH_PATH]

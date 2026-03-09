@@ -126,13 +126,16 @@ class Formula(ABC):
 		return None
 	
 	@staticmethod
-	def parse(s: str) -> Formula:
+	def parse(s: str, var_mapping: Dict[int, SASVariable] = {}) -> Formula:
 		"""
 		Returns the Formula object equivalent of the str.
 		Any symbols not identified as formulae are used to name atoms.
 		This includes unmatched brackets.
+		Provides SAS variables and values if var_mapping is provided.
 		"""
 		mappings = Formula.binary_mappings | Formula.unary_mappings
+		
+		using_sas = len(var_mapping)>0
 		
 		s = s.strip()
 		if s[0] == "(":
@@ -143,9 +146,16 @@ class Formula(ABC):
 		binary_index = Formula.__check_binary(s)
 		if binary_index is not None:
 			# There was a binary symbol
-			left = Formula.parse(s[0:binary_index])
 			symbol = s[binary_index]
+			if using_sas and symbol == '=':
+				# if it is an assign
+				left = var_mapping[int(s[0:binary_index])]
+				right = var_mapping[int(s[binary_index+1:])]
+				return Assign(left, right)
+			left = Formula.parse(s[0:binary_index])
 			right = Formula.parse(s[binary_index+1:])
+			
+			
 			return globals()[mappings[symbol]](left, right)
 		
 		# If we begin with a valid symbol, parse as unary.
@@ -153,6 +163,7 @@ class Formula(ABC):
 			return globals()[mappings[s[0]]](Formula.parse(s[1:]))
 		
 		return Atom(s)
+		
 	
 	@staticmethod
 	def __inverse_demorgan(F: Formula):

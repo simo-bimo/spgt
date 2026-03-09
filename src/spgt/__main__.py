@@ -5,7 +5,7 @@ from typing import List
 
 from spgt.translator import Translator, TranslatorManual, TranslatorSAS
 from spgt.solver import solve
-from spgt.base.logic import Formula
+from spgt.base.logic import Formula, Variable, SASVariable
 from spgt.regressor import Regressor
 
 from spgt import names
@@ -90,7 +90,10 @@ def set_goal(arg_goal: str, t: Translator) -> Formula:
 	print("The available variables are:")
 	for v in sorted(t.variables, key=lambda v: v.symbol):
 		print(f"\t{v.symbol}:")
-		print("\t\t" + ", ".join(sorted(v.domain)))
+		if isinstance(v, Variable):
+			print("\t\t" + ", ".join(sorted(v.domain)))
+		else:
+			print("\t\t" + ", ".join(str(x) for x in range(v.domain_size)))
 		
 	print("The available binary logic symbols are:")
 	for bop, symb in Formula.binary_mappings.items():
@@ -101,7 +104,7 @@ def set_goal(arg_goal: str, t: Translator) -> Formula:
 		print(f"\t{symb}: {uop}")
 	
 	form_str = input("Please provide the desired goal formula: ")
-	t.overwrite_goal(Formula.parse(form_str))
+	t.overwrite_goal(Formula.parse(form_str, var_mapping = t.var_mapping))
 	pass
 	
 def parse_clingo_args(args: str) -> List[str]:
@@ -121,7 +124,7 @@ def main():
 		new_start = time()
 		set_goal(args.goal, translator)
 		# subtract the time spent choosing the goal.
-		start_time -= time() - new_start
+		start_time += new_start - time()
 	
 	# The translator may already contain, or have been updated
 	# to contain ppltl formulae, in which case we need to use the

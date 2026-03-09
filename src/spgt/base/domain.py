@@ -37,8 +37,6 @@ class GroundedEffect:
 		Returns a list of ASP rules for the add and delete rules of the effect.
 		"""
 		ls = []
-		return ls
-		# Since regression has moved to python, the add and delete rules are not necessary in the planner.
 		for var,val in self.add:
 			s = ASP_EFFECT_ADD_SYMBOL + f"({make_safe(self.name)}, {str(var)}, {str(val)})."
 			ls.append(s)

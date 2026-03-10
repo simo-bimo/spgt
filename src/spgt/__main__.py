@@ -52,6 +52,8 @@ def get_args():
 					 type=int,
 					 default=1)
 	
+	parser.add_argument('--backbone', action='store_true')
+	
 	parser.add_argument('--ppltl', action='store_true')
 	parser.add_argument('--strong', action='store_true')
 	parser.add_argument('--time_limit',

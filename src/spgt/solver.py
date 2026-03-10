@@ -2,8 +2,7 @@ import subprocess
 
 from clingraph.orm import Factbase
 from clingraph.graphviz import compute_graphs, render
-from clingo import Control
-from clingo import Model
+from clingo import Control, Model, SolveResult
 
 from typing import List, AnyStr
 
@@ -13,7 +12,8 @@ from spgt.names import ASP_PPLTL_PLANNER_PATH, \
 		ASP_PLANNER_PATH, ASP_REGRESSOR_PATH, \
 		ASP_PPLTL_REGRESSOR_PATH, ASP_CLINGRAPH_PATH, \
 		ASP_STRONG_PATH, \
-		ASP_PLANNER_PYREG_PATH
+		ASP_PLANNER_PYREG_PATH, \
+		ASP_BACKBONE_FINDER_PATH
 
 from spgt.regressor import Regressor
 
@@ -31,6 +31,30 @@ def filter_atoms(atoms: List[AnyStr], filter: List[AnyStr] = [], as_facts: bool 
 				local_a += "."
 			output_atoms.append(local_a)
 	return output_atoms
+
+def weak_program(instance:str, k: int = 1) -> Control:
+	ctl = Control(['-c', f'numNodes={k-1}'])
+	ctl.load(instance)
+	ctl.load(ASP_BACKBONE_FINDER_PATH)
+	ctl.configuration.solve.models = 1
+	return ctl
+
+def calculate_backbone(instance: str, regressor: Regressor = None) -> int:
+	'''
+	Solves for a weak plan to lower bound controller size.
+	Returns the calculated lower bound.
+	'''
+	print('Calculating backbone...')
+	k = 0
+	solved = False
+	while not solved:
+		k += 1
+		ctl = weak_program(instance, k)
+		ctl.ground(context=regressor)
+		solved = ctl.solve().satisfiable
+	
+	return k
+	
 
 def _run_clingo_as_subprocess(clingo_path: AnyStr,
 							  files: List[AnyStr],
@@ -128,10 +152,15 @@ def _create_and_solve(files: List[AnyStr], k: int = 1, extra_args: List[AnyStr] 
 	print("There was an error during solving.")
 	return False
 
-def solve_iteratively(args, files, regressor: Regressor):
+def solve_iteratively(args, files, regressor: Regressor, start_size: int = None):
 	output = False
 	clingo_args = args.clingo_args
-	num_nodes = args.start_size-1
+	
+	if start_size is None:
+		start_size = args.start_size-1
+	
+	num_nodes = start_size
+
 	while output == False:
 		num_nodes += 1
 		print(f"Attempting to solve with {num_nodes} nodes.")
@@ -162,10 +191,15 @@ def solve(args, instance_file: AnyStr, regressor: Regressor, start_time: float):
 	if args.time_limit >= 0:
 		args.subprocess = True
 	
+	if args.backbone:
+		start_size = calculate_backbone(instance_file, regressor)
+	else:
+		start_size = args.start_size-1
+	
 	if args.subprocess:
 		output = solve_iteratively_subprocess(args, files, start_time)
 	else:
-		output = solve_iteratively(args, files, regressor)
+		output = solve_iteratively(args, files, regressor, start_size)
 	
 	if args.graph and len(output):
 		generate_graph(output, args.temp_dir)

@@ -9,6 +9,7 @@ ASP_PLANNER_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "regression_variab
 ASP_PPLTL_PLANNER_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "reg_var_ppltl_planner.lp"))
 
 ASP_PLANNER_PYREG_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "pyreg_planner.lp"))
+ASP_BACKBONE_FINDER_PATH = os.path.abspath(os.path.join(ASP_CODE_DIR, "backbone_finder.lp"))
 
 ASP_REGRESSOR_PATH  = os.path.abspath(os.path.join(ASP_CODE_DIR, "regressor_variable.lp"))
 ASP_PPLTL_REGRESSOR_PATH  = os.path.abspath(os.path.join(ASP_CODE_DIR, "regressor_var_ppltl.lp"))

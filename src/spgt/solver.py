@@ -13,7 +13,8 @@ from spgt.names import ASP_PPLTL_PLANNER_PATH, \
 		ASP_PPLTL_REGRESSOR_PATH, ASP_CLINGRAPH_PATH, \
 		ASP_STRONG_PATH, \
 		ASP_PLANNER_PYREG_PATH, \
-		ASP_BACKBONE_FINDER_PATH
+		ASP_BACKBONE_FINDER_PATH, \
+		ASP_SYMMETRY_OPTS_PATH
 
 from spgt.regressor import Regressor
 
@@ -172,7 +173,9 @@ def solve_iteratively(args, files, regressor: Regressor, start_size: int = None)
 
 def select_files(args) -> List[str]:
 	# files = [ASP_PLANNER_PATH, ASP_REGRESSOR_PATH]
-	files = [ASP_PLANNER_PYREG_PATH]
+	files = [ASP_PLANNER_PYREG_PATH, ASP_SYMMETRY_OPTS_PATH]
+	if args.no_symmetry_opts:
+		files = [ASP_PLANNER_PYREG_PATH]
 	# if args.ppltl:
 	# 	files = [ASP_PPLTL_PLANNER_PATH, ASP_PPLTL_REGRESSOR_PATH]
 	

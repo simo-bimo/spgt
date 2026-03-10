@@ -53,6 +53,7 @@ def get_args():
 					 default=1)
 	
 	parser.add_argument('--backbone', action='store_true')
+	parser.add_argument('--no_symmetry_opts', action='store_true')
 	
 	parser.add_argument('--ppltl', action='store_true')
 	parser.add_argument('--strong', action='store_true')

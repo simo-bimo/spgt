@@ -2,6 +2,9 @@
 
 node(0..numNodes).
 {policy(N, A): action(A)} = 1:- node(N), N != numNodes.
+
+% Nodes are placed in a line, since it is a weak-plan,
+% and only consider one outgoing effect.
 {next(N, E, N+1): effect(A,E)} = 1:- policy(N, A), node(N), N!= numNodes.
 
 holds(numNodes, F) :- goal(F).

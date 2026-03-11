@@ -34,4 +34,8 @@ holds(N1, @reg(F, E)) :- next(N1, E, N2), use_reg(N2, F).
 :- holds(0, F), F=neg(has_value(Var,Val)), init(Var,Val).
 
 % Prevent any claims of things being true yesterday if there are no previous states.
-:- holds(0, F), F=yest(G).
+:- holds(0, F), F=yest(G), G!=falsum.
+holds(0, H):- holds(0, F), F=since(G, H), H!=falsum.
+holds(0, G):- holds(0, F), F=since(G, H), H=falsum.
+holds(0, G):- holds(0, F), F=dual_since(G, H).
+holds(0, H):- holds(0, F), F=dual_since(G, H).

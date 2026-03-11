@@ -35,7 +35,9 @@ class Formula(ABC):
 	}
 	unary_mappings = {
 		'!': 'Neg',
-		'Y': 'Yesterday'
+		'Y': 'Yesterday',
+		'T': 'Verum',
+		'F': 'Falsum'
 	}
 	
 	def as_ASP(self):
@@ -88,9 +90,12 @@ class Formula(ABC):
 			if asp.startswith(s):
 				sub_asp = asp.removeprefix(s).removeprefix('(').removesuffix(')')
 				subs = [x.strip().strip('\\"') for x in split_top_brackets(sub_asp)]
+				# for constants
+				if not len(subs) or '' in subs:
+					return f()
 				return f(*[Formula.from_asp(x, var_mapping=var_mapping) for x in subs])
 		
-		raise ValueError('Could not determine Symbol Type')
+		raise ValueError('Could not determine Symbol Type for ' + str(asp_string))
 	
 	@staticmethod
 	def __check_binary(s: str, binary_symbols = None) -> int | None:
@@ -136,6 +141,10 @@ class Formula(ABC):
 		mappings = Formula.binary_mappings | Formula.unary_mappings
 		
 		using_sas = len(var_mapping)>0
+		if s == 'T':
+			return Verum()
+		if s == 'F':
+			return Falsum()
 		
 		s = s.strip()
 		if s[0] == "(":
@@ -320,6 +329,10 @@ class Since(BinaryOp):
 	
 	def is_ppltl(self):
 		return True
+	
+	def one_step(self):
+		left, right = tuple(self._sub)
+		return Disj(right, Conj(left, Yesterday(right)))
 
 class DualSince(BinaryOp):
 	symbol = "DS"
@@ -327,6 +340,10 @@ class DualSince(BinaryOp):
 	
 	def is_ppltl(self):
 		return True
+	
+	def one_step(self):
+		left, right = tuple(self._sub)
+		return Conj(right, Disj(left, Yesterday(right)))
 
 class Conj(BinaryOp):
 	symbol = "\u2227"

@@ -38,7 +38,11 @@ reachableG(N):- next(N, _, N1), reachableG(N1).
 
 % Prevent any claims of things being true yesterday if there are no previous states.
 :- {next(_, _, N)}0, holds(N, F), F=yest(G), G!=falsum.
-:- holds(0, F), F=yest(G).
+:- holds(0, F), F=yest(G), G!=falsum.
+holds(0, H):- holds(0, F), F=since(G, H), H!=falsum.
+holds(0, G):- holds(0, F), F=since(G, H), H=falsum.
+holds(0, G):- holds(0, F), F=dual_since(G, H).
+holds(0, H):- holds(0, F), F=dual_since(G, H).
 
 
 

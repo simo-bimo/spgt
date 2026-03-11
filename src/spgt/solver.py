@@ -144,7 +144,7 @@ def _create_and_solve(files: List[AnyStr], k: int = 1, extra_args: List[AnyStr] 
 	ctl.ground(context=regressor)
 	# We only want a single stable model.
 	ctl.configuration.solve.models = 1
-		
+	
 	with ctl.solve(yield_=True) as hdlr:
 		for model in hdlr:
 			atoms = atoms_from_model(model)
@@ -158,9 +158,9 @@ def solve_iteratively(args, files, regressor: Regressor, start_size: int = None)
 	clingo_args = args.clingo_args
 	
 	if start_size is None:
-		start_size = args.start_size-1
+		start_size = args.start_size
 	
-	num_nodes = start_size
+	num_nodes = start_size-1
 
 	while output == False:
 		num_nodes += 1
@@ -197,7 +197,7 @@ def solve(args, instance_file: AnyStr, regressor: Regressor, start_time: float):
 	if args.backbone:
 		start_size = calculate_backbone(instance_file, regressor)
 	else:
-		start_size = args.start_size-1
+		start_size = args.start_size
 	
 	if args.subprocess:
 		output = solve_iteratively_subprocess(args, files, start_time)

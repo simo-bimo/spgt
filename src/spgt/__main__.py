@@ -107,7 +107,10 @@ def set_goal(arg_goal: str, t: Translator) -> Formula:
 		print(f"\t{symb}: {uop}")
 	
 	form_str = input("Please provide the desired goal formula: ")
-	t.overwrite_goal(Formula.parse(form_str, var_mapping = t.var_mapping))
+	f = Formula.parse(form_str, var_mapping = t.var_mapping)
+	print("The formula has been parsed as: " + str(f))
+	
+	t.overwrite_goal(f)
 	pass
 	
 def parse_clingo_args(args: str) -> List[str]:
